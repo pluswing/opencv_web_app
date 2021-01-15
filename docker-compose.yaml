@@ -2,8 +2,7 @@ version: "3.8"
 services:
   server:
     build:
-      dockerfile: server/Dockerfile
-      context: .
+      context: ./server
     volumes:
       - ./server:/server:delegated
     ports:
@@ -13,11 +12,10 @@ services:
     # command: FLASK_APP=app.py flask run -h 0.0.0.0
   front:
     build:
-      dockerfile: front/Dockerfile
-      context: .
+      context: ./front
     volumes:
       - ./front:/front:delegated
     ports:
-      - 4000:4000
+      - 8000:8000
     tty: true
     working_dir: /front

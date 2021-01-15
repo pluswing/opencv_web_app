@@ -1,5 +1,4 @@
-FROM debian:bullseye
-RUN apt update && apt install -y curl
+FROM node:14.15.4-buster
 # install elm
 RUN curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/binary-for-linux-64-bit.gz && \
   gunzip elm.gz && \
