@@ -1,9 +1,11 @@
 from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS
 from uuid import uuid4
 import os
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024　# 1MB
+CORS(app)
+app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024 # 1MB
 
 TASK_DIR = os.path.join(
     os.path.dirname(__file__),
@@ -27,6 +29,7 @@ def upload_image():
   task_id = str(uuid4())
   id = str(uuid4())
   save_path = os.path.join(TASK_DIR, task_id, f"{id}.jpg")
+  os.makedirs(os.path.dirname(save_path))
   file.save(save_path)
   return jsonify({
     'result': {

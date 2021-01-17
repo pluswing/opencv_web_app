@@ -1,3 +1,5 @@
+module FileUpload exposing ( main )
+
 import Browser
 import File exposing (File)
 import File.Select as Select
@@ -14,15 +16,16 @@ main =
     , view = view
     }
 
-type Model =
+type Msg =
   CsvRequested |
   CsvSelected File |
-  Uploaded
+  Uploaded (Result Http.Error ())
 
+type alias Model = Maybe File
 
 init : () -> (Model, Cmd Msg)
 init _ =
-  ( Loading, Cmd.none )
+  ( Nothing, Cmd.none )
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -30,13 +33,13 @@ update msg model =
         CsvRequested ->
             ( model, Select.file [] CsvSelected )
 
-        CsvSelected f ->
-            ( model , Http.post {
-              url = "/upload_image"
-            , body = Http.multipartBody [ Http.filePart "uploadFile" f ]
-        , expect = Http.expectWhatever Uploaded
-        }
-    )
+        CsvSelected file ->
+            ( model ,
+            Http.post {
+              url = "http://localhost:5000/upload_image"
+            , body = Http.multipartBody [ Http.filePart "uploadFile" file ]
+            , expect = Http.expectWhatever Uploaded }
+            )
         _ ->
             ( model, Cmd.none )
 
