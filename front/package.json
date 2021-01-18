@@ -1,0 +1,18 @@
+{
+  "name": "front",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "elm-format": "^0.8.4",
+    "elm-test": "^0.19.1-revision4"
+  },
+  "dependencies": {
+    "express": "^4.17.1"
+  }
+}
