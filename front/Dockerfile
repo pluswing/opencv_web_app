@@ -4,3 +4,7 @@ RUN curl -L -o elm.gz https://github.com/elm/compiler/releases/download/0.19.1/b
   gunzip elm.gz && \
   chmod +x elm && \
   mv elm /usr/local/bin/
+COPY . /front
+WORKDIR /front
+RUN npm install --only=prod
+ENTRYPOINT node server.js

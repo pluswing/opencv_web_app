@@ -1,5 +1,8 @@
 {
   "extensions": [
     "elmtooling.elm-ls-vscode"
+  ],
+  "postCreateCommand": [
+    "npm install"
   ]
 }

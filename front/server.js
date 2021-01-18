@@ -1,9 +1,8 @@
 const express = require('express')
 const app = express()
-const port = 5000
+const port = 8000
 
-app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`)
+app.use(express.static('dist'));
+app.listen(port, '0.0.0.0', () => {
+  console.log(`front app listening at http://0.0.0.0:${port}`)
 })
-
-// http://localost:5000/static/index.html
