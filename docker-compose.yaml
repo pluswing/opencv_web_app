@@ -19,4 +19,4 @@ services:
       - 8000:8000
     tty: true
     working_dir: /front
-    command: elm reactor
+    entrypoint: elm reactor
