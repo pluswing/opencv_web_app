@@ -4,6 +4,6 @@ start:
 lint:
 	autopep8 -i *.py
 	flake8 *.py
-	mypy --strict --warn-unreachable *.py
+	mypy *.py
 
 .PHONY: lint start

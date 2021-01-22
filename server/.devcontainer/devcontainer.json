@@ -1,0 +1,8 @@
+{
+  "extensions": [
+    "ms-python.python"
+  ],
+  "postCreateCommand": [
+    "pip install -r requirements-dev.txt"
+  ]
+}
