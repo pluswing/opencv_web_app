@@ -4,10 +4,11 @@ import Browser
 import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, button, div, img, text)
-import Html.Attributes exposing (src, type_, value)
+import Html.Attributes exposing (src)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode exposing (Decoder, field, map2, string)
+import Json.Encode as Encode
 
 
 main : Program () Model Msg
@@ -24,6 +25,8 @@ type Msg
     = CsvRequested
     | CsvSelected File
     | Uploaded (Result Http.Error Image)
+    | Grayscale
+    | GrayscapeResponse (Result Http.Error Image)
 
 
 type alias Model =
@@ -56,12 +59,35 @@ update msg model =
                 Ok img ->
                     ( { model | image = Just img }, Cmd.none )
 
-                Err err ->
+                Err _ ->
+                    ( { model | image = Nothing }, Cmd.none )
+
+        Grayscale ->
+            case model.image of
+                Just img ->
+                    ( model
+                    , Http.post
+                        { url = "http://localhost:5000/grayscale"
+                        , body =
+                            Http.jsonBody (imageEncoder img)
+                        , expect = Http.expectJson GrayscapeResponse grayscapeResponseDecoder
+                        }
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        GrayscapeResponse result ->
+            case result of
+                Ok img ->
+                    ( { model | image = Just img }, Cmd.none )
+
+                Err _ ->
                     ( { model | image = Nothing }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
+subscriptions _ =
     Sub.none
 
 
@@ -69,6 +95,7 @@ view : Model -> Html Msg
 view model =
     div []
         [ button [ onClick CsvRequested ] [ text "Upload Image" ]
+        , button [ onClick Grayscale ] [ text "grayscale" ]
         , img [ src (image2Url model.image) ] []
         ]
 
@@ -91,6 +118,11 @@ imageDecoder =
         (field "id" string)
 
 
+grayscapeResponseDecoder : Decoder Image
+grayscapeResponseDecoder =
+    uploadImageResponseDecoder
+
+
 image2Url : Maybe Image -> String
 image2Url image =
     case image of
@@ -99,3 +131,11 @@ image2Url image =
 
         Nothing ->
             ""
+
+
+imageEncoder : Image -> Encode.Value
+imageEncoder image =
+    Encode.object
+        [ ( "task_id", Encode.string image.taskId )
+        , ( "id", Encode.string image.id )
+        ]
