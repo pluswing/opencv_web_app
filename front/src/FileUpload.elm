@@ -26,7 +26,7 @@ type Msg
     | CsvSelected File
     | Uploaded (Result Http.Error Image)
     | Grayscale
-    | GrayscapeResponse (Result Http.Error Image)
+    | GrayscaleResponse (Result Http.Error Image)
 
 
 type alias Model =
@@ -70,14 +70,14 @@ update msg model =
                         { url = "http://localhost:5000/grayscale"
                         , body =
                             Http.jsonBody (imageEncoder img)
-                        , expect = Http.expectJson GrayscapeResponse grayscapeResponseDecoder
+                        , expect = Http.expectJson GrayscaleResponse grayscaleResponseDecoder
                         }
                     )
 
                 Nothing ->
                     ( model, Cmd.none )
 
-        GrayscapeResponse result ->
+        GrayscaleResponse result ->
             case result of
                 Ok img ->
                     ( { model | image = Just img }, Cmd.none )
@@ -118,8 +118,8 @@ imageDecoder =
         (field "id" string)
 
 
-grayscapeResponseDecoder : Decoder Image
-grayscapeResponseDecoder =
+grayscaleResponseDecoder : Decoder Image
+grayscaleResponseDecoder =
     uploadImageResponseDecoder
 
 

@@ -8,7 +8,7 @@ import numpy as np
 
 app = Flask(__name__)
 CORS(app)
-app.config['MAX_CONTENT_LENGTH'] = 1 * 1024 * 1024  # 1MB
+app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024  # 1MB
 
 TASK_DIR = os.path.join(
     os.path.dirname(__file__),
@@ -20,7 +20,7 @@ def image_path(task_id: str, id: str) -> str:
 
 
 def error_res(message: str) -> Tuple[Any, int]:
-    return jsonify({'error': message}), 400
+    return jsonify({"error": message}), 400
 
 
 @app.route("/")
@@ -28,15 +28,15 @@ def hello() -> str:
     return "Hello, World!"
 
 
-@app.route('/upload_image', methods=['POST'])
+@app.route("/upload_image", methods=["POST"])
 def upload_image() -> Any:
     # <input type="file" name="uploadFile"
-    if 'uploadFile' not in request.files:
+    if "uploadFile" not in request.files:
         return error_res("required upload file")
-    file = request.files['uploadFile']
+    file = request.files["uploadFile"]
     file_name = file.filename
-    if '' == file_name:
-        return error_res('filename must not empty.')
+    if "" == file_name:
+        return error_res("filename must not empty.")
 
     task_id = str(uuid4())
     id = str(uuid4())
@@ -49,7 +49,7 @@ def upload_image() -> Any:
     cv2.imwrite(save_path, img)
 
     return jsonify({
-        'result': {
+        "result": {
             "image": {
                 "task_id": task_id,
                 "id": id,
@@ -58,14 +58,14 @@ def upload_image() -> Any:
     })
 
 
-@app.route('/grayscale', methods=['POST'])
+@app.route("/grayscale", methods=["POST"])
 def grayscale() -> Any:
     data = request.json
     # {task_id: XXX, id: XXX}
     task_id = data.get("task_id", "")
     path = image_path(task_id, data.get("id", ""))
     if not os.path.exists(path):
-        error_res('filename not exists')
+        error_res("filename not exists")
 
     img = cv2.imread(path)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -74,7 +74,7 @@ def grayscale() -> Any:
     cv2.imwrite(write_path, gray)
 
     return jsonify({
-        'result': {
+        "result": {
             "image": {
                 "task_id": task_id,
                 "id": new_id,
