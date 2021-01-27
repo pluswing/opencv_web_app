@@ -1,6 +1,7 @@
 module FileUpload exposing (main)
 
 import Browser
+import Env exposing (apiEndpoint)
 import File exposing (File)
 import File.Select as Select
 import Html exposing (Html, button, div, img, text)
@@ -48,7 +49,7 @@ update msg model =
         CsvSelected file ->
             ( model
             , Http.post
-                { url = "http://localhost:5000/upload_image"
+                { url = apiEndpoint ++ "/upload_image"
                 , body = Http.multipartBody [ Http.filePart "uploadFile" file ]
                 , expect = Http.expectJson Uploaded uploadImageResponseDecoder
                 }
@@ -67,7 +68,7 @@ update msg model =
                 Just img ->
                     ( model
                     , Http.post
-                        { url = "http://localhost:5000/grayscale"
+                        { url = apiEndpoint ++ "/grayscale"
                         , body =
                             Http.jsonBody (imageEncoder img)
                         , expect = Http.expectJson GrayscaleResponse grayscaleResponseDecoder
@@ -127,7 +128,7 @@ image2Url : Maybe Image -> String
 image2Url image =
     case image of
         Just img ->
-            "http://localhost:5000/static/task/" ++ img.taskId ++ "/" ++ img.id ++ ".jpg"
+            apiEndpoint ++ "/static/task/" ++ img.taskId ++ "/" ++ img.id ++ ".jpg"
 
         Nothing ->
             ""

@@ -1,9 +1,12 @@
 start:
-	FLASK_APP=app.py flask run -h 0.0.0.0
+	FLASK_APP=src/app.py FLASK_ENV=development flask run -h 0.0.0.0
 
 lint:
-	autopep8 -i *.py
-	flake8 *.py
-	mypy *.py
+	autopep8 -i src/*.py tests/*.py
+	flake8 src/*.py tests/*.py
+	mypy src/*.py tests/*.py
 
-.PHONY: lint start
+test:
+	PYTHONPATH=. pytest tests
+
+.PHONY: lint start test

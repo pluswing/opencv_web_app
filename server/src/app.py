@@ -6,12 +6,14 @@ import os
 import cv2
 import numpy as np
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../static')
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024  # 1MB
 
 TASK_DIR = os.path.join(
-    os.path.dirname(__file__),
+    os.path.dirname(
+        os.path.dirname(__file__)
+    ),
     "static", "task")
 
 

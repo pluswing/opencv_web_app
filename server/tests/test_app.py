@@ -1,10 +1,10 @@
 from src.app import app, image_path
 
-clinet = app.test_client()
+client = app.test_client()
 
 
 def test_usecase() -> None:
-    res = clinet.post("/upload_image")
+    res = client.post("/upload_image")
     assert res.status_code == 400
     assert res.get_json() == {'error': 'required upload file'}
 
@@ -14,4 +14,4 @@ def test_usecase() -> None:
 
 
 def test_image_path() -> None:
-    assert image_path("a", "b") == "/server/src/static/task/a/b.jpg"
+    assert image_path("a", "b") == "/server/static/task/a/b.jpg"
