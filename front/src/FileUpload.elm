@@ -1,4 +1,4 @@
-module FileUpload exposing (main)
+module FileUpload exposing (image2Url, main)
 
 import Browser
 import Env exposing (apiEndpoint)
