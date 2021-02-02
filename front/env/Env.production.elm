@@ -3,4 +3,4 @@ module Env exposing (apiEndpoint)
 
 apiEndpoint : String
 apiEndpoint =
-    "http://localhost:5000"
+    "http://34.85.106.82:5000"
