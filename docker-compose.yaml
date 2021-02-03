@@ -3,20 +3,10 @@ services:
   server:
     build:
       context: ./server
-    volumes:
-      - ./server:/server:delegated
     ports:
       - 5000:5000
-    tty: true
-    working_dir: /server
-    entrypoint: make start
   front:
     build:
       context: ./front
-    volumes:
-      - ./front:/front:delegated
     ports:
       - 8000:8000
-    tty: true
-    working_dir: /front
-    entrypoint: elm reactor

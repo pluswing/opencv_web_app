@@ -3,4 +3,4 @@ RUN apt update && apt install -y libgl1-mesa-dev
 COPY . /server
 WORKDIR /server
 RUN pip install -r requirements.txt
-ENTRYPOINT gunicorn -w 4 src.app:app
+CMD gunicorn -w 4 src.app:app

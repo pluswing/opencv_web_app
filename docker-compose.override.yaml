@@ -1,0 +1,14 @@
+version: "3.8"
+services:
+  server:
+    volumes:
+      - ./server:/server:delegated
+    tty: true
+    working_dir: /server
+    command: make start
+  front:
+    volumes:
+      - ./front:/front:delegated
+    tty: true
+    working_dir: /front
+    command: elm reactor
