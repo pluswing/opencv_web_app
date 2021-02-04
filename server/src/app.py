@@ -83,3 +83,30 @@ def grayscale() -> Any:
             }
         }
     })
+
+
+"""
+threshold = 100
+ret, img_thresh = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+
+ret2, img_otsu = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)
+
+#閾値がいくつになったか確認
+print("ret2: {}".format(ret2))
+"""
+
+# グレースケール
+# -> フィルター系（パラメータなし。画像のみ）
+
+# ２値化 白黒にするやつ
+#
+# 矩形の切り取り
+# -> パラメータあり。
+#    画像＋？
+
+# 顔認識
+# 数字認識
+# (Object Detection)
+# -> パラメータなし（ある場合もある）
+# -> 戻り値が画像＋？
+#    -> 矩形の座標、値。
