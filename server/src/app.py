@@ -85,6 +85,39 @@ def grayscale() -> Any:
     })
 
 
+@app.route("/threshold", methods=["POST"])
+def threshold() -> Any:
+    data = request.json
+    task_id = data.get("task_id", "")
+    path = image_path(task_id, data.get("id", ""))
+    if not os.path.exists(path):
+        error_res("filename not exists")
+    threshold = int(data.get("threshold", 0))
+
+    img = cv2.imread(path)
+
+    if threshold == 0:
+        threshold, img_thresh = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)
+    else:
+        _, img_thresh = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+
+    new_id = str(uuid4())
+    write_path = image_path(task_id, new_id)
+    cv2.imwrite(write_path, img_thresh)
+
+    return jsonify({
+        "result": {
+            "image": {
+                "task_id": task_id,
+                "id": new_id,
+            },
+            "params": {
+                "threshold": threshold
+            }
+        }
+    })
+
+
 """
 threshold = 100
 ret, img_thresh = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)

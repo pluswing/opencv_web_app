@@ -4,9 +4,9 @@ import Browser
 import Env exposing (apiEndpoint)
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, button, div, img, text)
-import Html.Attributes exposing (src)
-import Html.Events exposing (onClick)
+import Html exposing (Html, button, div, img, input, text)
+import Html.Attributes exposing (src, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Json.Decode exposing (Decoder, field, map2, string)
 import Json.Encode as Encode
@@ -28,16 +28,20 @@ type Msg
     | Uploaded (Result Http.Error Image)
     | Grayscale
     | GrayscaleResponse (Result Http.Error Image)
+    | ChangeThreshold String
+    | Threshold
+    | ThresholdResponse (Result Http.Error Image)
 
 
 type alias Model =
     { image : Maybe Image
+    , threshold : String
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { image = Nothing }, Cmd.none )
+    ( { image = Nothing, threshold = "" }, Cmd.none )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -86,6 +90,33 @@ update msg model =
                 Err _ ->
                     ( { model | image = Nothing }, Cmd.none )
 
+        ChangeThreshold value ->
+            ( { model | threshold = value }, Cmd.none )
+
+        Threshold ->
+            case model.image of
+                Just img ->
+                    ( model
+                    , Http.post
+                        { url = apiEndpoint ++ "/threshold"
+                        , body =
+                            -- TODO thresholdを渡す。
+                            Http.jsonBody (imageEncoder img)
+                        , expect = Http.expectJson ThresholdResponse thresholdResponseDecoder
+                        }
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        ThresholdResponse result ->
+            case result of
+                Ok img ->
+                    ( { model | image = Just img }, Cmd.none )
+
+                Err _ ->
+                    ( { model | image = Nothing }, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -97,6 +128,8 @@ view model =
     div []
         [ button [ onClick CsvRequested ] [ text "Upload Image" ]
         , button [ onClick Grayscale ] [ text "grayscale" ]
+        , input [ type_ "text", value model.threshold, onInput ChangeThreshold ] []
+        , button [ onClick Threshold ] [ text "threshold" ]
         , img [ src (image2Url model.image) ] []
         ]
 
@@ -121,6 +154,12 @@ imageDecoder =
 
 grayscaleResponseDecoder : Decoder Image
 grayscaleResponseDecoder =
+    uploadImageResponseDecoder
+
+
+thresholdResponseDecoder : Decoder Image
+thresholdResponseDecoder =
+    -- TODO thresholdも返す
     uploadImageResponseDecoder
 
 
