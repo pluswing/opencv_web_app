@@ -92,9 +92,10 @@ def threshold() -> Any:
     path = image_path(task_id, data.get("id", ""))
     if not os.path.exists(path):
         error_res("filename not exists")
-    threshold = int(data.get("threshold", 0))
+    t = data.get("threshold")
+    threshold = int(t if t else 0)
 
-    img = cv2.imread(path)
+    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
 
     if threshold == 0:
         threshold, img_thresh = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)
@@ -112,7 +113,7 @@ def threshold() -> Any:
                 "id": new_id,
             },
             "params": {
-                "threshold": threshold
+                "threshold": str(int(threshold))
             }
         }
     })

@@ -30,7 +30,7 @@ type Msg
     | GrayscaleResponse (Result Http.Error Image)
     | ChangeThreshold String
     | Threshold
-    | ThresholdResponse (Result Http.Error Image)
+    | ThresholdResponse (Result Http.Error ImageWithThreshold)
 
 
 type alias Model =
@@ -100,8 +100,7 @@ update msg model =
                     , Http.post
                         { url = apiEndpoint ++ "/threshold"
                         , body =
-                            -- TODO thresholdを渡す。
-                            Http.jsonBody (imageEncoder img)
+                            Http.jsonBody (imageEncoderWithThreashold img model.threshold)
                         , expect = Http.expectJson ThresholdResponse thresholdResponseDecoder
                         }
                     )
@@ -112,7 +111,7 @@ update msg model =
         ThresholdResponse result ->
             case result of
                 Ok img ->
-                    ( { model | image = Just img }, Cmd.none )
+                    ( { model | image = Just img.image, threshold = img.threshold }, Cmd.none )
 
                 Err _ ->
                     ( { model | image = Nothing }, Cmd.none )
@@ -140,6 +139,12 @@ type alias Image =
     }
 
 
+type alias ImageWithThreshold =
+    { image : Image
+    , threshold : String
+    }
+
+
 uploadImageResponseDecoder : Decoder Image
 uploadImageResponseDecoder =
     field "result" (field "image" imageDecoder)
@@ -157,10 +162,11 @@ grayscaleResponseDecoder =
     uploadImageResponseDecoder
 
 
-thresholdResponseDecoder : Decoder Image
+thresholdResponseDecoder : Decoder ImageWithThreshold
 thresholdResponseDecoder =
-    -- TODO thresholdも返す
-    uploadImageResponseDecoder
+    map2 ImageWithThreshold
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "threshold" string)))
 
 
 image2Url : Maybe Image -> String
@@ -178,4 +184,13 @@ imageEncoder image =
     Encode.object
         [ ( "task_id", Encode.string image.taskId )
         , ( "id", Encode.string image.id )
+        ]
+
+
+imageEncoderWithThreashold : Image -> String -> Encode.Value
+imageEncoderWithThreashold image threshold =
+    Encode.object
+        [ ( "task_id", Encode.string image.taskId )
+        , ( "id", Encode.string image.id )
+        , ( "threshold", Encode.string threshold )
         ]
