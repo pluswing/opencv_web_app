@@ -120,13 +120,40 @@ def threshold() -> Any:
 
 
 """
-threshold = 100
-ret, img_thresh = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
 
-ret2, img_otsu = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)
+img = cv2.imread('sachin.jpg')
+gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-#閾値がいくつになったか確認
-print("ret2: {}".format(ret2))
+faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+for (x,y,w,h) in faces:
+    img = cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
+    roi_color = img[y:y+h, x:x+w]
+"""
+"""
+{
+  "result": {
+    "image": {
+      "task_id":xxx,
+      "id": xxx,
+      "x":
+      "y":
+      "width":
+      "height":
+    },
+    "faces": [
+      {
+        "task_id":xxx,
+        "id": xxx,
+        "x":
+        "y":
+        "width":
+        "height":
+      }
+      ...
+    ]
+  }
+}
 """
 
 # グレースケール
