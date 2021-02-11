@@ -10,6 +10,7 @@ app = Flask(__name__, static_folder='../static')
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 1 * 1024 * 1024  # 1MB
 
+SRC_DIR = os.path.dirname(__file__)
 TASK_DIR = os.path.join(
     os.path.dirname(
         os.path.dirname(__file__)
@@ -119,42 +120,59 @@ def threshold() -> Any:
     })
 
 
-"""
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+face_cascade = cv2.CascadeClassifier(os.path.join(
+    SRC_DIR, 'haarcascade_frontalface_default.xml'))
 
-img = cv2.imread('sachin.jpg')
-gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-for (x,y,w,h) in faces:
-    img = cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
-    roi_color = img[y:y+h, x:x+w]
-"""
-"""
-{
-  "result": {
-    "image": {
-      "task_id":xxx,
-      "id": xxx,
-      "x":
-      "y":
-      "width":
-      "height":
-    },
-    "faces": [
-      {
-        "task_id":xxx,
-        "id": xxx,
-        "x":
-        "y":
-        "width":
-        "height":
-      }
-      ...
-    ]
-  }
-}
-"""
+@app.route("/face_detection", methods=["POST"])
+def face_detection() -> Any:
+    try:
+        data = request.json
+        task_id = data.get("task_id", "")
+        path = image_path(task_id, data.get("id", ""))
+        if not os.path.exists(path):
+            error_res("filename not exists")
+
+        img = cv2.imread(path)
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+        face_data = []
+        for (x, y, w, h) in faces:
+            img = cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
+            face_img = img[y:y+h, x:x+w]
+            new_id = str(uuid4())
+            write_path = image_path(task_id, new_id)
+            cv2.imwrite(write_path, face_img)
+            face_data.append({
+                "task_id": task_id,
+                "id": new_id,
+                "x": x,
+                "y": y,
+                "width": w,
+                "height": h
+            })
+
+        new_id = str(uuid4())
+        write_path = image_path(task_id, new_id)
+        cv2.imwrite(write_path, img)
+
+        return jsonify({
+            "result": {
+                "image": {
+                    "task_id": task_id,
+                    "id": new_id,
+                    "x": 0,
+                    "y": 0,
+                    "width": img.shape[1],
+                    "height": img.shape[0],
+                },
+                "faces": face_data
+            }
+        })
+    except Exception as e:
+        print(e)
 
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）
