@@ -134,12 +134,14 @@ def face_detection() -> Any:
             error_res("filename not exists")
 
         img = cv2.imread(path)
+        img_with_rect = img.copy()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
         face_data = []
         for (x, y, w, h) in faces:
-            img = cv2.rectangle(img, (x, y), (x+w, y+h), (255, 0, 0), 2)
+            cv2.rectangle(
+                img_with_rect, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
             face_img = img[y:y+h, x:x+w]
             new_id = str(uuid4())
@@ -148,15 +150,15 @@ def face_detection() -> Any:
             face_data.append({
                 "task_id": task_id,
                 "id": new_id,
-                "x": x,
-                "y": y,
-                "width": w,
-                "height": h
+                "x": int(x),
+                "y": int(y),
+                "width": int(w),
+                "height": int(h),
             })
 
         new_id = str(uuid4())
         write_path = image_path(task_id, new_id)
-        cv2.imwrite(write_path, img)
+        cv2.imwrite(write_path, img_with_rect)
 
         return jsonify({
             "result": {
