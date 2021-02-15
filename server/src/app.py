@@ -61,8 +61,7 @@ def upload_image() -> Any:
     })
 
 
-@app.route("/grayscale", methods=["POST"])
-def grayscale() -> Any:
+def filter_api(action):
     data = request.json
     # {task_id: XXX, id: XXX}
     task_id = data.get("task_id", "")
@@ -71,53 +70,47 @@ def grayscale() -> Any:
         error_res("filename not exists")
 
     img = cv2.imread(path)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img, params = action(data, img)
     new_id = str(uuid4())
     write_path = image_path(task_id, new_id)
-    cv2.imwrite(write_path, gray)
+    cv2.imwrite(write_path, img)
 
     return jsonify({
         "result": {
             "image": {
                 "task_id": task_id,
                 "id": new_id,
-            }
+                "x": 0,
+                "y": 0,
+                "width": img.shape[1],
+                "height": img.shape[0],
+            },
+            "params": params
         }
     })
+
+
+@app.route("/grayscale", methods=["POST"])
+def grayscale() -> Any:
+    def gray(data, img):
+        return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), None
+
+    return filter_api(gray)
 
 
 @app.route("/threshold", methods=["POST"])
 def threshold() -> Any:
-    data = request.json
-    task_id = data.get("task_id", "")
-    path = image_path(task_id, data.get("id", ""))
-    if not os.path.exists(path):
-        error_res("filename not exists")
-    t = data.get("threshold")
-    threshold = int(t if t else 0)
+    def thre(data, img):
+        t = data.get("threshold")
+        threshold = int(t if t else 0)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        if threshold == 0:
+            threshold, img = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)
+        else:
+            _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
+        return img, {"threshold": str(int(threshold))}
 
-    img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
-
-    if threshold == 0:
-        threshold, img_thresh = cv2.threshold(img, 0, 255, cv2.THRESH_OTSU)
-    else:
-        _, img_thresh = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
-
-    new_id = str(uuid4())
-    write_path = image_path(task_id, new_id)
-    cv2.imwrite(write_path, img_thresh)
-
-    return jsonify({
-        "result": {
-            "image": {
-                "task_id": task_id,
-                "id": new_id,
-            },
-            "params": {
-                "threshold": str(int(threshold))
-            }
-        }
-    })
+    return filter_api(thre)
 
 
 face_cascade = cv2.CascadeClassifier(os.path.join(
@@ -126,14 +119,8 @@ face_cascade = cv2.CascadeClassifier(os.path.join(
 
 @app.route("/face_detection", methods=["POST"])
 def face_detection() -> Any:
-    try:
-        data = request.json
+    def fd(data, img):
         task_id = data.get("task_id", "")
-        path = image_path(task_id, data.get("id", ""))
-        if not os.path.exists(path):
-            error_res("filename not exists")
-
-        img = cv2.imread(path)
         img_with_rect = img.copy()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -147,6 +134,7 @@ def face_detection() -> Any:
             new_id = str(uuid4())
             write_path = image_path(task_id, new_id)
             cv2.imwrite(write_path, face_img)
+
             face_data.append({
                 "task_id": task_id,
                 "id": new_id,
@@ -155,26 +143,9 @@ def face_detection() -> Any:
                 "width": int(w),
                 "height": int(h),
             })
+        return img_with_rect, {"faces": face_data}
 
-        new_id = str(uuid4())
-        write_path = image_path(task_id, new_id)
-        cv2.imwrite(write_path, img_with_rect)
-
-        return jsonify({
-            "result": {
-                "image": {
-                    "task_id": task_id,
-                    "id": new_id,
-                    "x": 0,
-                    "y": 0,
-                    "width": img.shape[1],
-                    "height": img.shape[0],
-                },
-                "faces": face_data
-            }
-        })
-    except Exception as e:
-        print(e)
+    return filter_api(fd)
 
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）

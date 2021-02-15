@@ -8,7 +8,11 @@ task_id = "test"
 id = "a"
 
 
-def test_usecase() -> None:
+def test_image_path() -> None:
+    assert image_path("a", "b") == "/server/static/task/a/b.jpg"
+
+
+def test_upload_image() -> None:
     res = client.post("/upload_image")
     assert res.status_code == 400
     assert res.get_json() == {'error': 'required upload file'}
@@ -16,10 +20,6 @@ def test_usecase() -> None:
     # TODO
     # filename not exists test
     # success test
-
-
-def test_image_path() -> None:
-    assert image_path("a", "b") == "/server/static/task/a/b.jpg"
 
 
 def clear_image() -> None:
@@ -46,7 +46,18 @@ def test_grayscale() -> None:
     assert res.status_code == 200
     data = res.get_json()
     assert data["result"]["image"].pop("id")
-    assert data == {'result': {'image': {'task_id': 'test'}}}
+    assert data == {
+        'result': {
+            'image': {
+                'task_id': 'test',
+                'x': 0,
+                'y': 0,
+                'height': 512,
+                'width': 512,
+            },
+            "params": None,
+        }
+    }
 
 
 def test_threshold() -> None:
@@ -58,7 +69,11 @@ def test_threshold() -> None:
     assert data == {
         'result': {
             'image': {
-                'task_id': 'test'
+                'task_id': 'test',
+                'x': 0,
+                'y': 0,
+                'height': 512,
+                'width': 512,
             },
             'params': {
                 'threshold': '117'
@@ -76,25 +91,27 @@ def test_face_detection() -> None:
     assert res.status_code == 200
     data = res.get_json()
     assert data["result"]["image"].pop("id")
-    assert len(data["result"]["faces"]) == 1
-    assert data["result"]["faces"][0].pop("id")
+    assert len(data["result"]["params"]["faces"]) == 1
+    assert data["result"]["params"]["faces"][0].pop("id")
     assert data == {
         'result': {
             'image': {
-                'height': 512,
                 # 'id': '4e2955c7-9578-475e-90dc-0278cfd3b27c',
                 'task_id': 'test',
-                'width': 512,
                 'x': 0,
-                'y': 0
+                'y': 0,
+                'height': 512,
+                'width': 512,
             },
-            'faces': [{
-                'height': 171,
-                # 'id': '4bd1079e-c66a-4d61-b872-68320bafa1cf',
-                'task_id': 'test',
-                'width': 171,
-                'x': 218,
-                'y': 204}
-            ],
+            'params': {
+                'faces': [{
+                    'height': 171,
+                    # 'id': '4bd1079e-c66a-4d61-b872-68320bafa1cf',
+                    'task_id': 'test',
+                    'width': 171,
+                    'x': 218,
+                    'y': 204}
+                ],
+            }
         }
     }
