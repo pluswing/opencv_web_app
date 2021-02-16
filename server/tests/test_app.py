@@ -1,4 +1,5 @@
 import os
+import pytest
 import shutil
 from typing import Any
 from src.app import app, image_path
@@ -6,6 +7,13 @@ from src.app import app, image_path
 client = app.test_client()
 task_id = "test"
 id = "a"
+
+
+@pytest.fixture(scope='function', autouse=True)
+def setup_each_function() -> Any:
+    clear_image()
+    yield
+    clear_image()
 
 
 def test_image_path() -> None:
@@ -24,7 +32,8 @@ def test_upload_image() -> None:
 
 def clear_image() -> None:
     path = image_path(task_id, id)
-    shutil.rmtree(os.path.dirname(path))
+    if os.path.exists(os.path.dirname(path)):
+        shutil.rmtree(os.path.dirname(path))
 
 
 def copy_image() -> Any:
@@ -41,7 +50,6 @@ def copy_image() -> Any:
 
 
 def test_grayscale() -> None:
-    clear_image()
     res = client.post("/grayscale", json=copy_image())
     assert res.status_code == 200
     data = res.get_json()
@@ -61,7 +69,6 @@ def test_grayscale() -> None:
 
 
 def test_threshold() -> None:
-    clear_image()
     res = client.post("/threshold", json=copy_image())
     assert res.status_code == 200
     data = res.get_json()
@@ -85,7 +92,6 @@ def test_threshold() -> None:
 
 
 def test_face_detection() -> None:
-    clear_image()
     res = client.post("/face_detection", json=copy_image())
 
     assert res.status_code == 200

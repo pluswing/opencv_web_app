@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from typing import Any, Tuple
+from typing import Any, Tuple, Callable, Optional
 from uuid import uuid4
 import os
 import cv2
@@ -61,7 +61,11 @@ def upload_image() -> Any:
     })
 
 
-def filter_api(action):
+def filter_api(
+        action: Callable[
+            [dict[str, Any], np.ndarray],
+            Tuple[np.ndarray, Optional[dict[str, Any]]]
+        ]) -> Any:
     data = request.json
     # {task_id: XXX, id: XXX}
     task_id = data.get("task_id", "")
@@ -92,7 +96,9 @@ def filter_api(action):
 
 @app.route("/grayscale", methods=["POST"])
 def grayscale() -> Any:
-    def gray(data, img):
+    def gray(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), None
 
     return filter_api(gray)
@@ -100,7 +106,9 @@ def grayscale() -> Any:
 
 @app.route("/threshold", methods=["POST"])
 def threshold() -> Any:
-    def thre(data, img):
+    def thre(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
         t = data.get("threshold")
         threshold = int(t if t else 0)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -119,7 +127,9 @@ face_cascade = cv2.CascadeClassifier(os.path.join(
 
 @app.route("/face_detection", methods=["POST"])
 def face_detection() -> Any:
-    def fd(data, img):
+    def fd(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
         task_id = data.get("task_id", "")
         img_with_rect = img.copy()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
