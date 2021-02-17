@@ -5,6 +5,7 @@ from uuid import uuid4
 import os
 import cv2
 import numpy as np
+import easyocr
 
 app = Flask(__name__, static_folder='../static')
 CORS(app)
@@ -98,7 +99,7 @@ def filter_api(
 def grayscale() -> Any:
     def gray(
             data: dict[str, Any],
-            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
+            img: np.ndarray) -> Tuple[np.ndarray, None]:
         return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), None
 
     return filter_api(gray)
@@ -156,6 +157,49 @@ def face_detection() -> Any:
         return img_with_rect, {"faces": face_data}
 
     return filter_api(fd)
+
+
+ocr_reader = easyocr.Reader(['ja', 'en'])
+
+
+@app.route("/ocr", methods=["POST"])
+def ocr() -> Any:
+    def _ocr(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
+        task_id = data.get("task_id", "")
+        path = image_path(task_id, data.get("id", ""))
+        result = ocr_reader.readtext(path)
+        img_with_rect = img.copy()
+        data_list = []
+        for (points, text, score) in result:
+            x = points[0][0]
+            y = points[0][1]
+            w = points[2][0] - x
+            h = points[2][1] - y
+            cv2.rectangle(
+                img_with_rect, (x, y), (x+w, y+h), (255, 0, 0), 2)
+
+            _img = img[y:y+h, x:x+w]
+            new_id = str(uuid4())
+            write_path = image_path(task_id, new_id)
+            cv2.imwrite(write_path, _img)
+
+            data_list.append({
+                "image": {
+                    "task_id": task_id,
+                    "id": new_id,
+                    "x": int(x),
+                    "y": int(y),
+                    "width": int(w),
+                    "height": int(h),
+                },
+                "text": text,
+                "score": score,
+            })
+        return img_with_rect, {"texts": data_list}
+
+    return filter_api(_ocr)
 
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）
