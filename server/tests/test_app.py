@@ -36,12 +36,12 @@ def clear_image() -> None:
         shutil.rmtree(os.path.dirname(path))
 
 
-def copy_image() -> Any:
+def copy_image(name: str = "lena.jpg") -> Any:
     path = image_path(task_id, id)
     if not os.path.exists(os.path.dirname(path)):
         os.makedirs(os.path.dirname(path))
     cur = os.path.dirname(__file__)
-    shutil.copy(f"{cur}/img/lena.jpg", path)
+    shutil.copy(f"{cur}/img/{name}", path)
 
     return {
         "task_id": task_id,
@@ -118,6 +118,78 @@ def test_face_detection() -> None:
                     'x': 218,
                     'y': 204}
                 ],
+            }
+        }
+    }
+
+
+def test_ocr() -> None:
+    res = client.post("/ocr", json=copy_image("japanese.jpg"))
+
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["result"]["image"].pop("id")
+    assert len(data["result"]["params"]["texts"]) == 4
+    for texts in data["result"]["params"]["texts"]:
+        assert texts["image"].pop("id")
+    assert data == {
+        'result': {
+            'image': {
+                'height': 418,
+                # 'id': '12b5d371-cf18-4581-94a7-3e27a67a7b3c',
+                'task_id': 'test',
+                'width': 555,
+                'x': 0,
+                'y': 0
+            },
+            'params': {
+                'texts': [
+                    {
+                        'image': {
+                            'height': 110,
+                            # 'id': '62de2404-c79d-4d0a-af20-9ddf77c7b7de',
+                            'task_id': 'test',
+                            'width': 418,
+                            'x': 71,
+                            'y': 49
+                        },
+                        'score': 0.6427963376045227,
+                        'text': 'ポ<捨て禁止!'
+                    }, {
+                        'image': {
+                            'height': 86,
+                            # 'id': '88d33358-4031-45ce-a827-43f1707d98f8',
+                            'task_id': 'test',
+                            'width': 366,
+                            'x': 95,
+                            'y': 149
+                        },
+                        'score': 0.31056877970695496,
+                        'text': 'NOLITTER'
+                    }, {
+                        'image': {
+                            'height': 56,
+                            # 'id': '7e8aa6c5-d535-49de-975f-be3180ded78d',
+                            'task_id': 'test',
+                            'width': 395,
+                            'x': 80,
+                            'y': 232
+                        },
+                        'score': 0.9784266948699951,
+                        'text': '清潔できれいな港区を'
+                    }, {
+                        'image': {
+                            'height': 44,
+                            # 'id': '211e3c44-090d-4be6-baab-39b885abb578',
+                            'task_id': 'test',
+                            'width': 328,
+                            'x': 109,
+                            'y': 289
+                        },
+                        'score': 0.18789316713809967,
+                        'text': '港 区 MINATO CITY'
+                    }
+                ]
             }
         }
     }
