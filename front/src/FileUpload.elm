@@ -8,7 +8,7 @@ import Html exposing (Html, button, div, img, input, text)
 import Html.Attributes exposing (src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
-import Json.Decode exposing (Decoder, field, map2, string)
+import Json.Decode exposing (Decoder, field, list, map2, string)
 import Json.Encode as Encode
 
 
@@ -31,6 +31,8 @@ type Msg
     | ChangeThreshold String
     | Threshold
     | ThresholdResponse (Result Http.Error ImageWithThreshold)
+    | FaceDetection
+    | FaceDetectionResponse (Result Http.Error ImageWithFaces)
 
 
 type alias Model =
@@ -116,6 +118,30 @@ update msg model =
                 Err _ ->
                     ( { model | image = Nothing }, Cmd.none )
 
+        FaceDetection ->
+            case model.image of
+                Just img ->
+                    ( model
+                    , Http.post
+                        { url = apiEndpoint ++ "/face_detection"
+                        , body =
+                            Http.jsonBody (imageEncoder img)
+                        , expect = Http.expectJson FaceDetectionResponse faceDetectionResponseDecoder
+                        }
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        FaceDetectionResponse result ->
+            -- TODO 顔の切り取り画像をどうするか...
+            case result of
+                Ok img ->
+                    ( { model | image = Just img.image }, Cmd.none )
+
+                Err _ ->
+                    ( { model | image = Nothing }, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -129,6 +155,7 @@ view model =
         , button [ onClick Grayscale ] [ text "grayscale" ]
         , input [ type_ "text", value model.threshold, onInput ChangeThreshold ] []
         , button [ onClick Threshold ] [ text "threshold" ]
+        , button [ onClick FaceDetection ] [ text "face detection" ]
         , img [ src (image2Url model.image) ] []
         ]
 
@@ -142,6 +169,12 @@ type alias Image =
 type alias ImageWithThreshold =
     { image : Image
     , threshold : String
+    }
+
+
+type alias ImageWithFaces =
+    { image : Image
+    , faces : List Image
     }
 
 
@@ -167,6 +200,13 @@ thresholdResponseDecoder =
     map2 ImageWithThreshold
         (field "result" (field "image" imageDecoder))
         (field "result" (field "params" (field "threshold" string)))
+
+
+faceDetectionResponseDecoder : Decoder ImageWithFaces
+faceDetectionResponseDecoder =
+    map2 ImageWithFaces
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "faces" list imageDecoder)))
 
 
 image2Url : Maybe Image -> String
