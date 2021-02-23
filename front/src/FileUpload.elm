@@ -8,7 +8,7 @@ import Html exposing (Html, button, div, img, input, text)
 import Html.Attributes exposing (src, type_, value)
 import Html.Events exposing (onClick, onInput)
 import Http
-import Json.Decode exposing (Decoder, field, list, map2, string)
+import Json.Decode exposing (Decoder, field, float, list, map2, map3, string)
 import Json.Encode as Encode
 
 
@@ -33,6 +33,8 @@ type Msg
     | ThresholdResponse (Result Http.Error ImageWithThreshold)
     | FaceDetection
     | FaceDetectionResponse (Result Http.Error ImageWithFaces)
+    | Ocr
+    | OcrResponse (Result Http.Error ImageWithTexts)
 
 
 type alias Model =
@@ -142,6 +144,29 @@ update msg model =
                 Err _ ->
                     ( { model | image = Nothing }, Cmd.none )
 
+        Ocr ->
+            case model.image of
+                Just img ->
+                    ( model
+                    , Http.post
+                        { url = apiEndpoint ++ "/ocr"
+                        , body =
+                            Http.jsonBody (imageEncoder img)
+                        , expect = Http.expectJson OcrResponse ocrResponseDecoder
+                        }
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        OcrResponse result ->
+            case result of
+                Ok img ->
+                    ( { model | image = Just img.image }, Cmd.none )
+
+                Err _ ->
+                    ( { model | image = Nothing }, Cmd.none )
+
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
@@ -156,6 +181,7 @@ view model =
         , input [ type_ "text", value model.threshold, onInput ChangeThreshold ] []
         , button [ onClick Threshold ] [ text "threshold" ]
         , button [ onClick FaceDetection ] [ text "face detection" ]
+        , button [ onClick Ocr ] [ text "OCR" ]
         , img [ src (image2Url model.image) ] []
         ]
 
@@ -175,6 +201,19 @@ type alias ImageWithThreshold =
 type alias ImageWithFaces =
     { image : Image
     , faces : List Image
+    }
+
+
+type alias ImageText =
+    { image : Image
+    , text : String
+    , score : Float
+    }
+
+
+type alias ImageWithTexts =
+    { image : Image
+    , texts : List ImageText
     }
 
 
@@ -206,7 +245,22 @@ faceDetectionResponseDecoder : Decoder ImageWithFaces
 faceDetectionResponseDecoder =
     map2 ImageWithFaces
         (field "result" (field "image" imageDecoder))
-        (field "result" (field "params" (field "faces" list imageDecoder)))
+        (field "result" (field "params" (field "faces" (list imageDecoder))))
+
+
+ocrResponseDecoder : Decoder ImageWithTexts
+ocrResponseDecoder =
+    map2 ImageWithTexts
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "texts" (list textImagedecoder))))
+
+
+textImagedecoder : Decoder ImageText
+textImagedecoder =
+    map3 ImageText
+        (field "image" imageDecoder)
+        (field "text" string)
+        (field "score" float)
 
 
 image2Url : Maybe Image -> String
