@@ -37,15 +37,29 @@ type Msg
     | OcrResponse (Result Http.Error ImageWithTexts)
 
 
+type FilterResult
+    = UploadImageResult Image
+    | GrayscaleResult Image
+    | ThresholdResult ImageWithThreshold
+    | FaceDetectionResult ImageWithFaces
+    | OcrResult ImageWithTexts
+
+
 type alias Model =
-    { image : Maybe Image
-    , threshold : String
+    { history : List FilterResult
+    , current : Maybe FilterResult
+    , threshold : String -- INPUT VALUE
     }
 
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { image = Nothing, threshold = "" }, Cmd.none )
+    ( { history = []
+      , current = Nothing
+      , threshold = ""
+      }
+    , Cmd.none
+    )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -66,12 +80,18 @@ update msg model =
         Uploaded result ->
             case result of
                 Ok img ->
-                    ( { model | image = Just img }, Cmd.none )
+                    ( { model
+                        | history = UploadImageResult img :: model.history
+                        , current = Just (UploadImageResult img)
+                      }
+                    , Cmd.none
+                    )
 
                 Err _ ->
-                    ( { model | image = Nothing }, Cmd.none )
+                    ( model, Cmd.none )
 
         Grayscale ->
+            -- TODO 選択画像をもつModelのプロパティが必要。
             case model.image of
                 Just img ->
                     ( model
@@ -89,10 +109,15 @@ update msg model =
         GrayscaleResponse result ->
             case result of
                 Ok img ->
-                    ( { model | image = Just img }, Cmd.none )
+                    ( { model
+                        | history = GrayscaleResult img :: model.history
+                        , current = Just (GrayscaleResult img)
+                      }
+                    , Cmd.none
+                    )
 
                 Err _ ->
-                    ( { model | image = Nothing }, Cmd.none )
+                    ( model, Cmd.none )
 
         ChangeThreshold value ->
             ( { model | threshold = value }, Cmd.none )
@@ -115,10 +140,15 @@ update msg model =
         ThresholdResponse result ->
             case result of
                 Ok img ->
-                    ( { model | image = Just img.image, threshold = img.threshold }, Cmd.none )
+                    ( { model
+                        | history = ThresholdResult img :: model.history
+                        , current = Just (ThresholdResult img)
+                      }
+                    , Cmd.none
+                    )
 
                 Err _ ->
-                    ( { model | image = Nothing }, Cmd.none )
+                    ( model, Cmd.none )
 
         FaceDetection ->
             case model.image of
@@ -136,13 +166,17 @@ update msg model =
                     ( model, Cmd.none )
 
         FaceDetectionResponse result ->
-            -- TODO 顔の切り取り画像をどうするか...
             case result of
                 Ok img ->
-                    ( { model | image = Just img.image }, Cmd.none )
+                    ( { model
+                        | history = FaceDetectionResult img :: model.history
+                        , current = Just (FaceDetectionResult img)
+                      }
+                    , Cmd.none
+                    )
 
                 Err _ ->
-                    ( { model | image = Nothing }, Cmd.none )
+                    ( model, Cmd.none )
 
         Ocr ->
             case model.image of
@@ -162,10 +196,15 @@ update msg model =
         OcrResponse result ->
             case result of
                 Ok img ->
-                    ( { model | image = Just img.image }, Cmd.none )
+                    ( { model
+                        | history = OcrResult img :: model.history
+                        , current = Just (OcrResult img)
+                      }
+                    , Cmd.none
+                    )
 
                 Err _ ->
-                    ( { model | image = Nothing }, Cmd.none )
+                    ( model, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
