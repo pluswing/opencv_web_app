@@ -81,7 +81,7 @@ update msg model =
             case result of
                 Ok img ->
                     ( { model
-                        | history = UploadImageResult img :: model.history
+                        | history = model.history ++ [ UploadImageResult img ]
                         , current = Just (UploadImageResult img)
                       }
                     , Cmd.none
@@ -92,7 +92,7 @@ update msg model =
 
         Grayscale ->
             -- TODO 選択画像をもつModelのプロパティが必要。
-            case model.image of
+            case model.current of
                 Just img ->
                     ( model
                     , Http.post
@@ -110,7 +110,7 @@ update msg model =
             case result of
                 Ok img ->
                     ( { model
-                        | history = GrayscaleResult img :: model.history
+                        | history = model.history ++ [ GrayscaleResult img ]
                         , current = Just (GrayscaleResult img)
                       }
                     , Cmd.none
@@ -141,7 +141,7 @@ update msg model =
             case result of
                 Ok img ->
                     ( { model
-                        | history = ThresholdResult img :: model.history
+                        | history = model.history ++ [ ThresholdResult img ]
                         , current = Just (ThresholdResult img)
                       }
                     , Cmd.none
@@ -169,7 +169,7 @@ update msg model =
             case result of
                 Ok img ->
                     ( { model
-                        | history = FaceDetectionResult img :: model.history
+                        | history = model.history ++ [ FaceDetectionResult img ]
                         , current = Just (FaceDetectionResult img)
                       }
                     , Cmd.none
@@ -197,7 +197,7 @@ update msg model =
             case result of
                 Ok img ->
                     ( { model
-                        | history = OcrResult img :: model.history
+                        | history = model.history ++ [ OcrResult img ]
                         , current = Just (OcrResult img)
                       }
                     , Cmd.none
@@ -223,6 +223,19 @@ view model =
         , button [ onClick Ocr ] [ text "OCR" ]
         , img [ src (image2Url model.image) ] []
         ]
+
+
+
+-- -- main view
+-- case model.current:
+--   ImageUploaded img ->
+--     imageUploadedView(img)
+--   GrayScaleResult img ->
+--     grayScaleView(img)
+--     ...
+-- -- side
+-- for h in model.history:
+--     historyListItem(img)
 
 
 type alias Image =
