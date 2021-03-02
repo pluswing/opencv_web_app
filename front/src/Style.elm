@@ -1,31 +1,49 @@
 module Style exposing (..)
 
-import Element exposing (Element, alignRight, centerY, el, explain, fill, padding, rgb255, row, spacing, text, width)
+import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
+import Element.Input exposing (button)
 
 
 main =
     Element.layout [ explain Debug.todo ]
-        myRowOfStuff
+        rootView
 
 
-myRowOfStuff : Element msg
-myRowOfStuff =
-    row [ width fill, centerY, spacing 30 ]
-        [ myElement
-        , myElement
-        , el [ alignRight ] myElement
+rootView : Element msg
+rootView =
+    row [ width fill, height fill, spacing 30 ]
+        [ controlView
+        , mainView
+        , historyView
         ]
 
 
-myElement : Element msg
-myElement =
-    el
-        [ Background.color (rgb255 240 0 245)
-        , Font.color (rgb255 255 255 255)
-        , Border.rounded 3
-        , padding 30
+controlView : Element msg
+controlView =
+    column [ alignTop ]
+        [ button []
+            { onPress = Nothing
+            , label = text "My Button"
+            }
+        , text "BUTTON 02"
+        , text "BUTTON 03"
+        , text "BUTTON 04"
         ]
-        (text "stylish!")
+
+
+mainView : Element msg
+mainView =
+    el [ width fill, alignTop ]
+        (text "MAIN")
+
+
+historyView : Element msg
+historyView =
+    column [ alignTop ]
+        [ text "HISTORY 01"
+        , text "HISTORY 02"
+        , text "HISTORY 03"
+        ]
