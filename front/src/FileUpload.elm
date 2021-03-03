@@ -1,12 +1,15 @@
 module FileUpload exposing (image2Url, main)
 
 import Browser
+import Element exposing (..)
+import Element.Background as Background
+import Element.Border as Border
+import Element.Font as Font
+import Element.Input exposing (button)
 import Env exposing (apiEndpoint)
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html, button, div, img, input, text)
-import Html.Attributes exposing (src, type_, value)
-import Html.Events exposing (onClick, onInput)
+import Html exposing (Html)
 import Http
 import Json.Decode exposing (Decoder, field, float, list, map2, map3, string)
 import Json.Encode as Encode
@@ -14,7 +17,7 @@ import Json.Encode as Encode
 
 main : Program () Model Msg
 main =
-    Browser.element
+    Browser.document
         { init = init
         , update = update
         , subscriptions = subscriptions
@@ -98,7 +101,7 @@ update msg model =
                     , Http.post
                         { url = apiEndpoint ++ "/grayscale"
                         , body =
-                            Http.jsonBody (imageEncoder img)
+                            Http.jsonBody (imageEncoder (filterResult2Image img))
                         , expect = Http.expectJson GrayscaleResponse grayscaleResponseDecoder
                         }
                     )
@@ -123,13 +126,13 @@ update msg model =
             ( { model | threshold = value }, Cmd.none )
 
         Threshold ->
-            case model.image of
+            case model.current of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/threshold"
                         , body =
-                            Http.jsonBody (imageEncoderWithThreashold img model.threshold)
+                            Http.jsonBody (imageEncoderWithThreashold (filterResult2Image img) model.threshold)
                         , expect = Http.expectJson ThresholdResponse thresholdResponseDecoder
                         }
                     )
@@ -151,13 +154,13 @@ update msg model =
                     ( model, Cmd.none )
 
         FaceDetection ->
-            case model.image of
+            case model.current of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/face_detection"
                         , body =
-                            Http.jsonBody (imageEncoder img)
+                            Http.jsonBody (imageEncoder (filterResult2Image img))
                         , expect = Http.expectJson FaceDetectionResponse faceDetectionResponseDecoder
                         }
                     )
@@ -179,13 +182,13 @@ update msg model =
                     ( model, Cmd.none )
 
         Ocr ->
-            case model.image of
+            case model.current of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/ocr"
                         , body =
-                            Http.jsonBody (imageEncoder img)
+                            Http.jsonBody (imageEncoder (filterResult2Image img))
                         , expect = Http.expectJson OcrResponse ocrResponseDecoder
                         }
                     )
@@ -207,21 +210,91 @@ update msg model =
                     ( model, Cmd.none )
 
 
+filterResult2Image : FilterResult -> Image
+filterResult2Image result =
+    case result of
+        UploadImageResult image ->
+            image
+
+        GrayscaleResult image ->
+            image
+
+        ThresholdResult image ->
+            image.image
+
+        FaceDetectionResult image ->
+            image.image
+
+        OcrResult image ->
+            image.image
+
+
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
 
 
-view : Model -> Html Msg
+view : Model -> Browser.Document Msg
 view model =
-    div []
-        [ button [ onClick CsvRequested ] [ text "Upload Image" ]
-        , button [ onClick Grayscale ] [ text "grayscale" ]
-        , input [ type_ "text", value model.threshold, onInput ChangeThreshold ] []
-        , button [ onClick Threshold ] [ text "threshold" ]
-        , button [ onClick FaceDetection ] [ text "face detection" ]
-        , button [ onClick Ocr ] [ text "OCR" ]
-        , img [ src (image2Url model.image) ] []
+    { title = "Example"
+    , body =
+        [ Element.layout
+            [ explain Debug.todo ]
+            rootView
+        ]
+    }
+
+
+rootView : Element Msg
+rootView =
+    row [ width fill, height fill, spacing 30 ]
+        [ controlView
+        , mainView
+        , historyView
+        ]
+
+
+controlView : Element Msg
+controlView =
+    column [ alignTop ]
+        [ button []
+            { onPress = Just CsvRequested
+            , label = text "Upload Image"
+            }
+        , button []
+            { onPress = Just Grayscale
+            , label = text "Grayscale"
+            }
+
+        --     , input [ type_ "text", value model.threshold, onInput ChangeThreshold ] []
+        , button []
+            { onPress = Just Threshold
+            , label = text "Threshold"
+            }
+        , button []
+            { onPress = Just FaceDetection
+            , label = text "Face detection"
+            }
+        , button []
+            { onPress = Just Ocr
+            , label = text "OCR"
+            }
+        ]
+
+
+mainView : Element Msg
+mainView =
+    --     , img [ src (image2Url model.image) ] []
+    el [ width fill, alignTop ]
+        (text "MAIN")
+
+
+historyView : Element Msg
+historyView =
+    column [ alignTop ]
+        [ text "HISTORY 01"
+        , text "HISTORY 02"
+        , text "HISTORY 03"
         ]
 
 
