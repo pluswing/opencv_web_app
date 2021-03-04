@@ -5,7 +5,7 @@ import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
-import Element.Input exposing (button)
+import Element.Input as Input
 import Env exposing (apiEndpoint)
 import File exposing (File)
 import File.Select as Select
@@ -240,62 +240,95 @@ view model =
     , body =
         [ Element.layout
             [ explain Debug.todo ]
-            rootView
+            (rootView model)
         ]
     }
 
 
-rootView : Element Msg
-rootView =
+rootView : Model -> Element Msg
+rootView model =
     row [ width fill, height fill, spacing 30 ]
-        [ controlView
-        , mainView
-        , historyView
+        [ controlView model.threshold
+        , mainView model.current
+        , historyView model.history
         ]
 
 
-controlView : Element Msg
-controlView =
+controlView : String -> Element Msg
+controlView threshold =
     column [ alignTop ]
-        [ button []
+        [ Input.button []
             { onPress = Just CsvRequested
             , label = text "Upload Image"
             }
-        , button []
+        , Input.button []
             { onPress = Just Grayscale
             , label = text "Grayscale"
             }
-
-        --     , input [ type_ "text", value model.threshold, onInput ChangeThreshold ] []
-        , button []
-            { onPress = Just Threshold
-            , label = text "Threshold"
-            }
-        , button []
+        , column []
+            [ --Input.text []
+              -- { onChange = ChangeThreshold
+              -- , text = threshold
+              -- }
+              --,
+              Input.button []
+                { onPress = Just Threshold
+                , label = text "Threshold"
+                }
+            ]
+        , Input.button []
             { onPress = Just FaceDetection
             , label = text "Face detection"
             }
-        , button []
+        , Input.button []
             { onPress = Just Ocr
             , label = text "OCR"
             }
         ]
 
 
-mainView : Element Msg
-mainView =
-    --     , img [ src (image2Url model.image) ] []
-    el [ width fill, alignTop ]
-        (text "MAIN")
+mainView : Maybe FilterResult -> Element Msg
+mainView result =
+    case result of
+        Just res ->
+            el [ width fill, alignTop ]
+                (image []
+                    { src = image2Url (filterResult2Image res)
+                    , description = ""
+                    }
+                )
+
+        Nothing ->
+            el [ width fill, alignTop ]
+                (text "Nothing")
 
 
-historyView : Element Msg
-historyView =
+historyView : List FilterResult -> Element Msg
+historyView history =
     column [ alignTop ]
-        [ text "HISTORY 01"
-        , text "HISTORY 02"
-        , text "HISTORY 03"
-        ]
+        (List.map
+            historyItemView
+            history
+        )
+
+
+historyItemView : FilterResult -> Element Msg
+historyItemView result =
+    case result of
+        UploadImageResult image ->
+            text "UPLAOD IMAGE"
+
+        GrayscaleResult image ->
+            text "GRASCALE"
+
+        ThresholdResult image ->
+            text "THRESHOLD"
+
+        FaceDetectionResult image ->
+            text "FACE DETECTION"
+
+        OcrResult image ->
+            text "OCR"
 
 
 
@@ -388,14 +421,9 @@ textImagedecoder =
         (field "score" float)
 
 
-image2Url : Maybe Image -> String
+image2Url : Image -> String
 image2Url image =
-    case image of
-        Just img ->
-            apiEndpoint ++ "/static/task/" ++ img.taskId ++ "/" ++ img.id ++ ".jpg"
-
-        Nothing ->
-            ""
+    apiEndpoint ++ "/static/task/" ++ image.taskId ++ "/" ++ image.id ++ ".jpg"
 
 
 imageEncoder : Image -> Encode.Value
