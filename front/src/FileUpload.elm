@@ -254,33 +254,48 @@ rootView model =
         ]
 
 
+colors =
+    { button = rgb255 0x4F 0xC4 0xCF
+    , buttonText = rgb255 0x18 0x18 0x18
+    }
+
+
+buttonStyle =
+    [ Background.color colors.button
+    , Font.color colors.buttonText
+    , Border.rounded 3
+    , padding 30
+    ]
+
+
 controlView : String -> Element Msg
 controlView threshold =
-    column [ alignTop ]
-        [ Input.button []
+    column [ alignTop, spacing 20 ]
+        [ Input.button buttonStyle
             { onPress = Just CsvRequested
             , label = text "Upload Image"
             }
-        , Input.button []
+        , Input.button buttonStyle
             { onPress = Just Grayscale
             , label = text "Grayscale"
             }
-        , column []
-            [ --Input.text []
-              -- { onChange = ChangeThreshold
-              -- , text = threshold
-              -- }
-              --,
-              Input.button []
+        , column buttonStyle
+            [ Input.text []
+                { onChange = ChangeThreshold
+                , text = threshold
+                , placeholder = Nothing
+                , label = Input.labelHidden ""
+                }
+            , Input.button []
                 { onPress = Just Threshold
                 , label = text "Threshold"
                 }
             ]
-        , Input.button []
+        , Input.button buttonStyle
             { onPress = Just FaceDetection
             , label = text "Face detection"
             }
-        , Input.button []
+        , Input.button buttonStyle
             { onPress = Just Ocr
             , label = text "OCR"
             }
