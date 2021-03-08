@@ -255,8 +255,16 @@ rootView model =
 
 
 colors =
-    { button = rgb255 0x4F 0xC4 0xCF
+    { background = rgb255 0xFF 0xFF 0xFE
+    , headline = rgb255 0x18 0x18 0x18
+    , paragraph = rgb255 0x2E 0x2E 0x2E
+    , button = rgb255 0x4F 0xC4 0xCF
     , buttonText = rgb255 0x18 0x18 0x18
+    , stroke = rgb255 0x18 0x18 0x18
+    , main = rgb255 0xF2 0xEE 0xF5
+    , highlight = rgb255 0x4F 0xC4 0xCF
+    , secondary = rgb255 0x99 0x4F 0xF3
+    , tertialy = rgb255 0xFB 0xDD 0x74
     }
 
 
@@ -265,6 +273,7 @@ buttonStyle =
     , Font.color colors.buttonText
     , Border.rounded 3
     , padding 30
+    , width fill
     ]
 
 
@@ -279,14 +288,14 @@ controlView threshold =
             { onPress = Just Grayscale
             , label = text "Grayscale"
             }
-        , column buttonStyle
+        , column [ width fill ]
             [ Input.text []
                 { onChange = ChangeThreshold
                 , text = threshold
                 , placeholder = Nothing
                 , label = Input.labelHidden ""
                 }
-            , Input.button []
+            , Input.button buttonStyle
                 { onPress = Just Threshold
                 , label = text "Threshold"
                 }
@@ -307,15 +316,70 @@ mainView result =
     case result of
         Just res ->
             el [ width fill, alignTop ]
-                (image []
-                    { src = image2Url (filterResult2Image res)
-                    , description = ""
-                    }
+                (case res of
+                    UploadImageResult image ->
+                        onlyImageView image
+
+                    GrayscaleResult image ->
+                        onlyImageView image
+
+                    ThresholdResult image ->
+                        thresholdResultView image
+
+                    FaceDetectionResult image ->
+                        faceDetectionResultView image
+
+                    OcrResult image ->
+                        ocrResultView image
                 )
 
         Nothing ->
             el [ width fill, alignTop ]
                 (text "Nothing")
+
+
+onlyImageView : Image -> Element Msg
+onlyImageView img =
+    image []
+        { src = image2Url img
+        , description = ""
+        }
+
+
+thresholdResultView : ImageWithThreshold -> Element Msg
+thresholdResultView image =
+    column []
+        [ onlyImageView image.image
+        , row []
+            [ text "THRESHOLD:"
+            , text image.threshold
+            ]
+        ]
+
+
+faceDetectionResultView : ImageWithFaces -> Element Msg
+faceDetectionResultView image =
+    row []
+        [ onlyImageView image.image
+        , column [] (List.map onlyImageView image.faces)
+        ]
+
+
+ocrResultView : ImageWithTexts -> Element Msg
+ocrResultView image =
+    row []
+        [ onlyImageView image.image
+        , column [] (List.map imageTextView image.texts)
+        ]
+
+
+imageTextView : ImageText -> Element Msg
+imageTextView image =
+    row []
+        [ onlyImageView image.image
+        , text image.text
+        , text ("(" ++ String.fromFloat image.score ++ ")")
+        ]
 
 
 historyView : List FilterResult -> Element Msg
