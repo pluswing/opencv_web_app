@@ -4,7 +4,8 @@ import Browser
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Font as Font
+import Element.Events as Events
+import Element.Font as Font exposing (center)
 import Element.Input as Input
 import Env exposing (apiEndpoint)
 import File exposing (File)
@@ -38,6 +39,7 @@ type Msg
     | FaceDetectionResponse (Result Http.Error ImageWithFaces)
     | Ocr
     | OcrResponse (Result Http.Error ImageWithTexts)
+    | SelectImage Image
 
 
 type FilterResult
@@ -51,6 +53,7 @@ type FilterResult
 type alias Model =
     { history : List FilterResult
     , current : Maybe FilterResult
+    , currentImage : Maybe Image
     , threshold : String -- INPUT VALUE
     }
 
@@ -59,6 +62,7 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { history = []
       , current = Nothing
+      , currentImage = Nothing
       , threshold = ""
       }
     , Cmd.none
@@ -86,6 +90,7 @@ update msg model =
                     ( { model
                         | history = model.history ++ [ UploadImageResult img ]
                         , current = Just (UploadImageResult img)
+                        , currentImage = Just img
                       }
                     , Cmd.none
                     )
@@ -94,14 +99,13 @@ update msg model =
                     ( model, Cmd.none )
 
         Grayscale ->
-            -- TODO 選択画像をもつModelのプロパティが必要。
-            case model.current of
+            case model.currentImage of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/grayscale"
                         , body =
-                            Http.jsonBody (imageEncoder (filterResult2Image img))
+                            Http.jsonBody (imageEncoder img)
                         , expect = Http.expectJson GrayscaleResponse grayscaleResponseDecoder
                         }
                     )
@@ -115,6 +119,7 @@ update msg model =
                     ( { model
                         | history = model.history ++ [ GrayscaleResult img ]
                         , current = Just (GrayscaleResult img)
+                        , currentImage = Just img
                       }
                     , Cmd.none
                     )
@@ -126,13 +131,17 @@ update msg model =
             ( { model | threshold = value }, Cmd.none )
 
         Threshold ->
-            case model.current of
+            case model.currentImage of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/threshold"
                         , body =
-                            Http.jsonBody (imageEncoderWithThreashold (filterResult2Image img) model.threshold)
+                            Http.jsonBody
+                                (imageEncoderWithThreashold
+                                    img
+                                    model.threshold
+                                )
                         , expect = Http.expectJson ThresholdResponse thresholdResponseDecoder
                         }
                     )
@@ -146,6 +155,7 @@ update msg model =
                     ( { model
                         | history = model.history ++ [ ThresholdResult img ]
                         , current = Just (ThresholdResult img)
+                        , currentImage = Just img.image
                       }
                     , Cmd.none
                     )
@@ -154,13 +164,13 @@ update msg model =
                     ( model, Cmd.none )
 
         FaceDetection ->
-            case model.current of
+            case model.currentImage of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/face_detection"
                         , body =
-                            Http.jsonBody (imageEncoder (filterResult2Image img))
+                            Http.jsonBody (imageEncoder img)
                         , expect = Http.expectJson FaceDetectionResponse faceDetectionResponseDecoder
                         }
                     )
@@ -174,6 +184,7 @@ update msg model =
                     ( { model
                         | history = model.history ++ [ FaceDetectionResult img ]
                         , current = Just (FaceDetectionResult img)
+                        , currentImage = Just img.image
                       }
                     , Cmd.none
                     )
@@ -182,13 +193,13 @@ update msg model =
                     ( model, Cmd.none )
 
         Ocr ->
-            case model.current of
+            case model.currentImage of
                 Just img ->
                     ( model
                     , Http.post
                         { url = apiEndpoint ++ "/ocr"
                         , body =
-                            Http.jsonBody (imageEncoder (filterResult2Image img))
+                            Http.jsonBody (imageEncoder img)
                         , expect = Http.expectJson OcrResponse ocrResponseDecoder
                         }
                     )
@@ -202,12 +213,16 @@ update msg model =
                     ( { model
                         | history = model.history ++ [ OcrResult img ]
                         , current = Just (OcrResult img)
+                        , currentImage = Just img.image
                       }
                     , Cmd.none
                     )
 
                 Err _ ->
                     ( model, Cmd.none )
+
+        SelectImage image ->
+            ( { model | currentImage = Just image }, Cmd.none )
 
 
 filterResult2Image : FilterResult -> Image
@@ -249,7 +264,7 @@ rootView : Model -> Element Msg
 rootView model =
     row [ width fill, height fill, spacing 30 ]
         [ controlView model.threshold
-        , mainView model.current
+        , mainView model.current model.currentImage
         , historyView model.history
         ]
 
@@ -274,6 +289,7 @@ buttonStyle =
     , Border.rounded 3
     , padding 30
     , width fill
+    , center
     ]
 
 
@@ -311,17 +327,17 @@ controlView threshold =
         ]
 
 
-mainView : Maybe FilterResult -> Element Msg
-mainView result =
+mainView : Maybe FilterResult -> Maybe Image -> Element Msg
+mainView result selected =
     case result of
         Just res ->
             el [ width fill, alignTop ]
                 (case res of
                     UploadImageResult image ->
-                        onlyImageView image
+                        imageView image
 
                     GrayscaleResult image ->
-                        onlyImageView image
+                        imageView image
 
                     ThresholdResult image ->
                         thresholdResultView image
@@ -338,9 +354,9 @@ mainView result =
                 (text "Nothing")
 
 
-onlyImageView : Image -> Element Msg
-onlyImageView img =
-    image []
+imageView : Image -> Element Msg
+imageView img =
+    image [ Events.onClick (SelectImage img) ]
         { src = image2Url img
         , description = ""
         }
@@ -349,7 +365,7 @@ onlyImageView img =
 thresholdResultView : ImageWithThreshold -> Element Msg
 thresholdResultView image =
     column []
-        [ onlyImageView image.image
+        [ imageView image.image
         , row []
             [ text "THRESHOLD:"
             , text image.threshold
@@ -360,23 +376,23 @@ thresholdResultView image =
 faceDetectionResultView : ImageWithFaces -> Element Msg
 faceDetectionResultView image =
     row []
-        [ onlyImageView image.image
-        , column [] (List.map onlyImageView image.faces)
+        [ imageView image.image
+        , column [] (List.map imageView image.faces)
         ]
 
 
 ocrResultView : ImageWithTexts -> Element Msg
 ocrResultView image =
     row []
-        [ onlyImageView image.image
+        [ imageView image.image
         , column [] (List.map imageTextView image.texts)
         ]
 
 
 imageTextView : ImageText -> Element Msg
 imageTextView image =
-    row []
-        [ onlyImageView image.image
+    column []
+        [ imageView image.image
         , text image.text
         , text ("(" ++ String.fromFloat image.score ++ ")")
         ]
