@@ -262,7 +262,12 @@ view model =
 
 rootView : Model -> Element Msg
 rootView model =
-    row [ width fill, height fill, spacing 30 ]
+    row
+        [ width fill
+        , height fill
+        , spacing 30
+        , Background.color colors.main
+        ]
         [ controlView model.threshold
         , mainView model.current model.currentImage
         , historyView model.history
@@ -334,19 +339,19 @@ mainView result selected =
             el [ width fill, alignTop ]
                 (case res of
                     UploadImageResult image ->
-                        imageView image
+                        imageView selected image
 
                     GrayscaleResult image ->
-                        imageView image
+                        imageView selected image
 
                     ThresholdResult image ->
-                        thresholdResultView image
+                        thresholdResultView image selected
 
                     FaceDetectionResult image ->
-                        faceDetectionResultView image
+                        faceDetectionResultView image selected
 
                     OcrResult image ->
-                        ocrResultView image
+                        ocrResultView image selected
                 )
 
         Nothing ->
@@ -354,18 +359,47 @@ mainView result selected =
                 (text "Nothing")
 
 
-imageView : Image -> Element Msg
-imageView img =
-    image [ Events.onClick (SelectImage img) ]
-        { src = image2Url img
-        , description = ""
-        }
+imageView : Maybe Image -> Image -> Element Msg
+imageView selected img =
+    case selected of
+        Just selectImage ->
+            case img == selectImage of
+                True ->
+                    image
+                        [ Background.color colors.highlight
+                        , padding 5
+                        , width shrink
+                        , Events.onClick (SelectImage img)
+                        ]
+                        { src = image2Url img
+                        , description = ""
+                        }
+
+                False ->
+                    image
+                        [ padding 5
+                        , width shrink
+                        , Events.onClick (SelectImage img)
+                        ]
+                        { src = image2Url img
+                        , description = ""
+                        }
+
+        Nothing ->
+            image
+                [ padding 5
+                , width shrink
+                , Events.onClick (SelectImage img)
+                ]
+                { src = image2Url img
+                , description = ""
+                }
 
 
-thresholdResultView : ImageWithThreshold -> Element Msg
-thresholdResultView image =
+thresholdResultView : ImageWithThreshold -> Maybe Image -> Element Msg
+thresholdResultView image selected =
     column []
-        [ imageView image.image
+        [ imageView selected image.image
         , row []
             [ text "THRESHOLD:"
             , text image.threshold
@@ -373,26 +407,26 @@ thresholdResultView image =
         ]
 
 
-faceDetectionResultView : ImageWithFaces -> Element Msg
-faceDetectionResultView image =
+faceDetectionResultView : ImageWithFaces -> Maybe Image -> Element Msg
+faceDetectionResultView image selected =
     row []
-        [ imageView image.image
-        , column [] (List.map imageView image.faces)
+        [ imageView selected image.image
+        , column [] (List.map (imageView selected) image.faces)
         ]
 
 
-ocrResultView : ImageWithTexts -> Element Msg
-ocrResultView image =
+ocrResultView : ImageWithTexts -> Maybe Image -> Element Msg
+ocrResultView image selected =
     row []
-        [ imageView image.image
-        , column [] (List.map imageTextView image.texts)
+        [ imageView selected image.image
+        , column [] (List.map (imageTextView selected) image.texts)
         ]
 
 
-imageTextView : ImageText -> Element Msg
-imageTextView image =
+imageTextView : Maybe Image -> ImageText -> Element Msg
+imageTextView selected image =
     column []
-        [ imageView image.image
+        [ imageView selected image.image
         , text image.text
         , text ("(" ++ String.fromFloat image.score ++ ")")
         ]
@@ -400,7 +434,7 @@ imageTextView image =
 
 historyView : List FilterResult -> Element Msg
 historyView history =
-    column [ alignTop ]
+    column [ alignTop, spacing 5 ]
         (List.map
             historyItemView
             history
@@ -409,21 +443,27 @@ historyView history =
 
 historyItemView : FilterResult -> Element Msg
 historyItemView result =
-    case result of
-        UploadImageResult image ->
-            text "UPLAOD IMAGE"
+    el
+        [ Background.color colors.secondary
+        , padding 10
+        , width fill
+        ]
+        (case result of
+            UploadImageResult image ->
+                text "UPLAOD IMAGE"
 
-        GrayscaleResult image ->
-            text "GRASCALE"
+            GrayscaleResult image ->
+                text "GRASCALE"
 
-        ThresholdResult image ->
-            text "THRESHOLD"
+            ThresholdResult image ->
+                text "THRESHOLD"
 
-        FaceDetectionResult image ->
-            text "FACE DETECTION"
+            FaceDetectionResult image ->
+                text "FACE DETECTION"
 
-        OcrResult image ->
-            text "OCR"
+            OcrResult image ->
+                text "OCR"
+        )
 
 
 
