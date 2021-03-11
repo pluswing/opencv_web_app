@@ -10,7 +10,6 @@ import Element.Input as Input
 import Env exposing (apiEndpoint)
 import File exposing (File)
 import File.Select as Select
-import Html exposing (Html)
 import Http
 import Json.Decode exposing (Decoder, field, float, list, map2, map3, string)
 import Json.Encode as Encode
@@ -40,6 +39,7 @@ type Msg
     | Ocr
     | OcrResponse (Result Http.Error ImageWithTexts)
     | SelectImage Image
+    | SelectLayer FilterResult
 
 
 type FilterResult
@@ -224,6 +224,9 @@ update msg model =
         SelectImage image ->
             ( { model | currentImage = Just image }, Cmd.none )
 
+        SelectLayer result ->
+            ( { model | current = Just result, currentImage = Just (filterResult2Image result) }, Cmd.none )
+
 
 filterResult2Image : FilterResult -> Image
 filterResult2Image result =
@@ -270,7 +273,7 @@ rootView model =
         ]
         [ controlView model.threshold
         , mainView model.current model.currentImage
-        , historyView model.history
+        , historyView model.history model.current
         ]
 
 
@@ -361,39 +364,21 @@ mainView result selected =
 
 imageView : Maybe Image -> Image -> Element Msg
 imageView selected img =
-    case selected of
-        Just selectImage ->
-            case img == selectImage of
-                True ->
-                    image
-                        [ Background.color colors.highlight
-                        , padding 5
-                        , width shrink
-                        , Events.onClick (SelectImage img)
-                        ]
-                        { src = image2Url img
-                        , description = ""
-                        }
+    image
+        ([ padding 5
+         , width shrink
+         , Events.onClick (SelectImage img)
+         ]
+            ++ (if selected == Just img then
+                    [ Background.color colors.highlight ]
 
-                False ->
-                    image
-                        [ padding 5
-                        , width shrink
-                        , Events.onClick (SelectImage img)
-                        ]
-                        { src = image2Url img
-                        , description = ""
-                        }
-
-        Nothing ->
-            image
-                [ padding 5
-                , width shrink
-                , Events.onClick (SelectImage img)
-                ]
-                { src = image2Url img
-                , description = ""
-                }
+                else
+                    []
+               )
+        )
+        { src = image2Url img
+        , description = ""
+        }
 
 
 thresholdResultView : ImageWithThreshold -> Maybe Image -> Element Msg
@@ -432,22 +417,29 @@ imageTextView selected image =
         ]
 
 
-historyView : List FilterResult -> Element Msg
-historyView history =
+historyView : List FilterResult -> Maybe FilterResult -> Element Msg
+historyView history selected =
     column [ alignTop, spacing 5 ]
         (List.map
-            historyItemView
+            (historyItemView selected)
             history
         )
 
 
-historyItemView : FilterResult -> Element Msg
-historyItemView result =
+historyItemView : Maybe FilterResult -> FilterResult -> Element Msg
+historyItemView selected result =
     el
-        [ Background.color colors.secondary
-        , padding 10
-        , width fill
-        ]
+        ([ padding 10
+         , width fill
+         , Events.onClick (SelectLayer result)
+         ]
+            ++ (if selected == Just result then
+                    [ Background.color colors.highlight ]
+
+                else
+                    [ Background.color colors.secondary ]
+               )
+        )
         (case result of
             UploadImageResult image ->
                 text "UPLAOD IMAGE"
@@ -464,19 +456,6 @@ historyItemView result =
             OcrResult image ->
                 text "OCR"
         )
-
-
-
--- -- main view
--- case model.current:
---   ImageUploaded img ->
---     imageUploadedView(img)
---   GrayScaleResult img ->
---     grayScaleView(img)
---     ...
--- -- side
--- for h in model.history:
---     historyListItem(img)
 
 
 type alias Image =
