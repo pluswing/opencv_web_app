@@ -201,6 +201,31 @@ def ocr() -> Any:
 
     return filter_api(_ocr)
 
+
+@app.route("/contours", methods=["POST"])
+def contours() -> Any:
+    def con(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
+        # task_id = data.get("task_id", "")
+        img_with_rect = img.copy()
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        threshold, thre = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
+
+        _, contours, hierarchy = cv2.findContours(
+            thre, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        img_with_rect = cv2.drawContours(
+            img_with_rect, contours, -1, (0, 0, 255, 255), 2, cv2.LINE_AA)
+
+        # TODO 抽出画像を別途保存
+        # TODO 四角の箇所のみ抽出。台形補正もやる
+
+        return img_with_rect, {}
+
+    return filter_api(con)
+
+
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）
 
