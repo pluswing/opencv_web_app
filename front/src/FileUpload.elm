@@ -40,6 +40,8 @@ type Msg
     | OcrResponse (Result Http.Error ImageWithTexts)
     | SelectImage Image
     | SelectLayer FilterResult
+    | Contours
+    | ContoursResponse (Result Http.Error Image)
 
 
 type FilterResult
@@ -48,6 +50,7 @@ type FilterResult
     | ThresholdResult ImageWithThreshold
     | FaceDetectionResult ImageWithFaces
     | OcrResult ImageWithTexts
+    | ContoursResult Image
 
 
 type alias Model =
@@ -227,6 +230,35 @@ update msg model =
         SelectLayer result ->
             ( { model | current = Just result, currentImage = Just (filterResult2Image result) }, Cmd.none )
 
+        Contours ->
+            case model.currentImage of
+                Just img ->
+                    ( model
+                    , Http.post
+                        { url = apiEndpoint ++ "/contours"
+                        , body =
+                            Http.jsonBody (imageEncoder img)
+                        , expect = Http.expectJson ContoursResponse contoursResponseDecoder
+                        }
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        ContoursResponse result ->
+            case result of
+                Ok img ->
+                    ( { model
+                        | history = model.history ++ [ ContoursResult img ]
+                        , current = Just (ContoursResult img)
+                        , currentImage = Just img
+                      }
+                    , Cmd.none
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
 
 filterResult2Image : FilterResult -> Image
 filterResult2Image result =
@@ -245,6 +277,9 @@ filterResult2Image result =
 
         OcrResult image ->
             image.image
+
+        ContoursResult image ->
+            image
 
 
 subscriptions : Model -> Sub Msg
@@ -332,6 +367,10 @@ controlView threshold =
             { onPress = Just Ocr
             , label = text "OCR"
             }
+        , Input.button buttonStyle
+            { onPress = Just Contours
+            , label = text "Contours"
+            }
         ]
 
 
@@ -355,6 +394,9 @@ mainView result selected =
 
                     OcrResult image ->
                         ocrResultView image selected
+
+                    ContoursResult image ->
+                        imageView selected image
                 )
 
         Nothing ->
@@ -455,6 +497,9 @@ historyItemView selected result =
 
             OcrResult image ->
                 text "OCR"
+
+            ContoursResult image ->
+                text "Contours"
         )
 
 
@@ -503,6 +548,11 @@ imageDecoder =
 
 grayscaleResponseDecoder : Decoder Image
 grayscaleResponseDecoder =
+    uploadImageResponseDecoder
+
+
+contoursResponseDecoder : Decoder Image
+contoursResponseDecoder =
     uploadImageResponseDecoder
 
 
