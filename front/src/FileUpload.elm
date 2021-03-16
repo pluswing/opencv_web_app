@@ -42,6 +42,8 @@ type Msg
     | SelectLayer FilterResult
     | Contours
     | ContoursResponse (Result Http.Error Image)
+    | BitwiseNot
+    | BitwiseNotResponse (Result Http.Error Image)
 
 
 type FilterResult
@@ -51,6 +53,7 @@ type FilterResult
     | FaceDetectionResult ImageWithFaces
     | OcrResult ImageWithTexts
     | ContoursResult Image
+    | BitwiseNotResult Image
 
 
 type alias Model =
@@ -259,6 +262,35 @@ update msg model =
                 Err _ ->
                     ( model, Cmd.none )
 
+        BitwiseNot ->
+            case model.currentImage of
+                Just img ->
+                    ( model
+                    , Http.post
+                        { url = apiEndpoint ++ "/bitwise_not"
+                        , body =
+                            Http.jsonBody (imageEncoder img)
+                        , expect = Http.expectJson BitwiseNotResponse bitwiseNotResponseDecoder
+                        }
+                    )
+
+                Nothing ->
+                    ( model, Cmd.none )
+
+        BitwiseNotResponse result ->
+            case result of
+                Ok img ->
+                    ( { model
+                        | history = model.history ++ [ BitwiseNotResult img ]
+                        , current = Just (BitwiseNotResult img)
+                        , currentImage = Just img
+                      }
+                    , Cmd.none
+                    )
+
+                Err _ ->
+                    ( model, Cmd.none )
+
 
 filterResult2Image : FilterResult -> Image
 filterResult2Image result =
@@ -279,6 +311,9 @@ filterResult2Image result =
             image.image
 
         ContoursResult image ->
+            image
+
+        BitwiseNotResult image ->
             image
 
 
@@ -371,6 +406,10 @@ controlView threshold =
             { onPress = Just Contours
             , label = text "Contours"
             }
+        , Input.button buttonStyle
+            { onPress = Just BitwiseNot
+            , label = text "BitwiseNot"
+            }
         ]
 
 
@@ -396,6 +435,9 @@ mainView result selected =
                         ocrResultView image selected
 
                     ContoursResult image ->
+                        imageView selected image
+
+                    BitwiseNotResult image ->
                         imageView selected image
                 )
 
@@ -500,6 +542,9 @@ historyItemView selected result =
 
             ContoursResult image ->
                 text "Contours"
+
+            BitwiseNotResult image ->
+                text "BitwiseNot"
         )
 
 
@@ -553,6 +598,11 @@ grayscaleResponseDecoder =
 
 contoursResponseDecoder : Decoder Image
 contoursResponseDecoder =
+    uploadImageResponseDecoder
+
+
+bitwiseNotResponseDecoder : Decoder Image
+bitwiseNotResponseDecoder =
     uploadImageResponseDecoder
 
 

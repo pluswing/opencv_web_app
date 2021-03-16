@@ -226,6 +226,17 @@ def contours() -> Any:
     return filter_api(con)
 
 
+@app.route("/bitwise_not", methods=["POST"])
+def bitwise_not() -> Any:
+    def _not(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, None]:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        threshold, thre = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
+        return cv2.bitwise_not(thre), None
+
+    return filter_api(_not)
+
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）
 
