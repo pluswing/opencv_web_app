@@ -233,6 +233,10 @@ def contours() -> Any:
         img_with_rect = cv2.drawContours(
             img_with_rect, contours, -1, (0, 0, 255, 255), 2, cv2.LINE_AA)
 
+        x, y, w, h = cv2.boundingRect(contours[0])
+        img_with_rect = cv2.rectangle(
+            img_with_rect, (x, y), (x+w, y+h), (0, 255, 0), 2)
+
         # TODO 抽出画像を別途保存
         # TODO 四角の箇所のみ抽出。台形補正もやる
 
