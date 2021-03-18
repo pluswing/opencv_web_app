@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from typing import Any, Tuple, Callable, Optional
+from typing import Any, Tuple, Callable, Optional, List
 from uuid import uuid4
 import os
 import cv2
@@ -214,6 +214,21 @@ def contours() -> Any:
 
         contours, hierarchy = cv2.findContours(
             thre, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        height, width = thre.shape
+        image_size = height * width
+
+        def is_valid_contour(contour: List[Tuple[int, int]]) -> bool:
+            # 小さな領域の場合は間引く
+            area = cv2.contourArea(contour)
+            if image_size * 0.01 > area:
+                return False
+            # 画像全体を占める領域は除外する
+            if image_size * 0.99 < area:
+                return False
+            return True
+
+        contours = [c for c in contours if is_valid_contour(c)]
 
         img_with_rect = cv2.drawContours(
             img_with_rect, contours, -1, (0, 0, 255, 255), 2, cv2.LINE_AA)
