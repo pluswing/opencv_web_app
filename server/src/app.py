@@ -6,6 +6,7 @@ import os
 import cv2
 import numpy as np
 import easyocr
+import math
 
 app = Flask(__name__, static_folder='../static')
 CORS(app)
@@ -230,17 +231,40 @@ def contours() -> Any:
 
         contours = [c for c in contours if is_valid_contour(c)]
 
+        def simplify(contour: List[Tuple[int, int]]) -> Any:
+            epsilon = 0.1 * cv2.arcLength(contour, True)
+            return cv2.approxPolyDP(contour, epsilon, True)
+
+        contours = [simplify(c) for c in contours]
+
         img_with_rect = cv2.drawContours(
             img_with_rect, contours, -1, (0, 0, 255, 255), 2, cv2.LINE_AA)
 
-        x, y, w, h = cv2.boundingRect(contours[0])
-        img_with_rect = cv2.rectangle(
-            img_with_rect, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        # 左上、左下、右下、右上
+        c = contours[0]
+        leftTop = c[0][0]
+        leftBottom = c[1][0]
+        rightBottom = c[2][0]
+        rightTop = c[3][0]
 
-        # TODO 抽出画像を別途保存
-        # TODO 四角の箇所のみ抽出。台形補正もやる
+        src = np.float32([leftTop, rightTop, leftBottom, rightBottom])
 
-        return img_with_rect, {}
+        # 左上、右上、左下、右下
+        o_width = int(math.sqrt(
+            (leftTop[0] - rightTop[0]) ** 2 +
+            (leftTop[1] - rightTop[1]) ** 2
+        ))
+        o_height = int(math.sqrt(
+            (leftTop[0] - leftBottom[0]) ** 2 +
+            (leftTop[1] - leftBottom[1]) ** 2
+        ))
+        dst = np.float32(
+            [[0, 0], [o_width, 0], [0, o_height], [o_width, o_height]])
+
+        M = cv2.getPerspectiveTransform(src, dst)
+        output = cv2.warpPerspective(img, M, (o_width, o_height))
+
+        return output, {}
 
     return filter_api(con)
 
