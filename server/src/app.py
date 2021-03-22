@@ -208,7 +208,7 @@ def contours() -> Any:
     def con(
             data: dict[str, Any],
             img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
-        # task_id = data.get("task_id", "")
+        task_id = data.get("task_id", "")
         img_with_rect = img.copy()
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         threshold, thre = cv2.threshold(gray, 0, 255, cv2.THRESH_OTSU)
@@ -237,34 +237,51 @@ def contours() -> Any:
 
         contours = [simplify(c) for c in contours]
 
+        # 四角以外は無視する
+        contours = [c for c in contours if len(c) == 4]
+
         img_with_rect = cv2.drawContours(
             img_with_rect, contours, -1, (0, 0, 255, 255), 2, cv2.LINE_AA)
 
-        # 左上、左下、右下、右上
-        c = contours[0]
-        leftTop = c[0][0]
-        leftBottom = c[1][0]
-        rightBottom = c[2][0]
-        rightTop = c[3][0]
+        data_list = []
+        for c in contours:
+            # 左上、左下、右下、右上
+            leftTop = c[0][0]
+            leftBottom = c[1][0]
+            rightBottom = c[2][0]
+            rightTop = c[3][0]
 
-        src = np.float32([leftTop, rightTop, leftBottom, rightBottom])
+            src = np.float32([leftTop, rightTop, leftBottom, rightBottom])
 
-        # 左上、右上、左下、右下
-        o_width = int(math.sqrt(
-            (leftTop[0] - rightTop[0]) ** 2 +
-            (leftTop[1] - rightTop[1]) ** 2
-        ))
-        o_height = int(math.sqrt(
-            (leftTop[0] - leftBottom[0]) ** 2 +
-            (leftTop[1] - leftBottom[1]) ** 2
-        ))
-        dst = np.float32(
-            [[0, 0], [o_width, 0], [0, o_height], [o_width, o_height]])
+            # 左上、右上、左下、右下
+            o_width = int(math.sqrt(
+                (leftTop[0] - rightTop[0]) ** 2 +
+                (leftTop[1] - rightTop[1]) ** 2
+            ))
+            o_height = int(math.sqrt(
+                (leftTop[0] - leftBottom[0]) ** 2 +
+                (leftTop[1] - leftBottom[1]) ** 2
+            ))
+            dst = np.float32(
+                [[0, 0], [o_width, 0], [0, o_height], [o_width, o_height]])
 
-        M = cv2.getPerspectiveTransform(src, dst)
-        output = cv2.warpPerspective(img, M, (o_width, o_height))
+            M = cv2.getPerspectiveTransform(src, dst)
+            output = cv2.warpPerspective(img, M, (o_width, o_height))
 
-        return output, {}
+            new_id = str(uuid4())
+            write_path = image_path(task_id, new_id)
+            cv2.imwrite(write_path, output)
+
+            data_list.append({
+                "task_id": task_id,
+                "id": new_id,
+                "x": int(leftTop[0]),
+                "y": int(leftTop[1]),
+                "width": int(o_width),
+                "height": int(o_height),
+            })
+
+        return img_with_rect, {"extracted": data_list}
 
     return filter_api(con)
 

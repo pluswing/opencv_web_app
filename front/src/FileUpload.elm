@@ -41,7 +41,7 @@ type Msg
     | SelectImage Image
     | SelectLayer FilterResult
     | Contours
-    | ContoursResponse (Result Http.Error Image)
+    | ContoursResponse (Result Http.Error ImageWithExtracted)
     | BitwiseNot
     | BitwiseNotResponse (Result Http.Error Image)
 
@@ -52,7 +52,7 @@ type FilterResult
     | ThresholdResult ImageWithThreshold
     | FaceDetectionResult ImageWithFaces
     | OcrResult ImageWithTexts
-    | ContoursResult Image
+    | ContoursResult ImageWithExtracted
     | BitwiseNotResult Image
 
 
@@ -254,7 +254,7 @@ update msg model =
                     ( { model
                         | history = model.history ++ [ ContoursResult img ]
                         , current = Just (ContoursResult img)
-                        , currentImage = Just img
+                        , currentImage = Just img.image
                       }
                     , Cmd.none
                     )
@@ -311,7 +311,7 @@ filterResult2Image result =
             image.image
 
         ContoursResult image ->
-            image
+            image.image
 
         BitwiseNotResult image ->
             image
@@ -435,7 +435,7 @@ mainView result selected =
                         ocrResultView image selected
 
                     ContoursResult image ->
-                        imageView selected image
+                        contourResultView image selected
 
                     BitwiseNotResult image ->
                         imageView selected image
@@ -481,6 +481,14 @@ faceDetectionResultView image selected =
     row []
         [ imageView selected image.image
         , column [] (List.map (imageView selected) image.faces)
+        ]
+
+
+contourResultView : ImageWithExtracted -> Maybe Image -> Element Msg
+contourResultView image selected =
+    row []
+        [ imageView selected image.image
+        , column [] (List.map (imageView selected) image.extracted)
         ]
 
 
@@ -566,6 +574,12 @@ type alias ImageWithFaces =
     }
 
 
+type alias ImageWithExtracted =
+    { image : Image
+    , extracted : List Image
+    }
+
+
 type alias ImageText =
     { image : Image
     , text : String
@@ -596,9 +610,11 @@ grayscaleResponseDecoder =
     uploadImageResponseDecoder
 
 
-contoursResponseDecoder : Decoder Image
+contoursResponseDecoder : Decoder ImageWithExtracted
 contoursResponseDecoder =
-    uploadImageResponseDecoder
+    map2 ImageWithExtracted
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "extracted" (list imageDecoder))))
 
 
 bitwiseNotResponseDecoder : Decoder Image
