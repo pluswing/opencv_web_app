@@ -347,6 +347,7 @@ rootView model =
         ]
 
 
+colors : { background : Color, headline : Color, paragraph : Color, button : Color, buttonText : Color, stroke : Color, main : Color, highlight : Color, secondary : Color, tertialy : Color }
 colors =
     { background = rgb255 0xFF 0xFF 0xFE
     , headline = rgb255 0x18 0x18 0x18
@@ -361,6 +362,7 @@ colors =
     }
 
 
+buttonStyle : List (Attr () msg)
 buttonStyle =
     [ Background.color colors.button
     , Font.color colors.buttonText
@@ -486,7 +488,7 @@ faceDetectionResultView image selected =
 
 contourResultView : ImageWithExtracted -> Maybe Image -> Element Msg
 contourResultView image selected =
-    row []
+    row [ width shrink ]
         [ imageView selected image.image
         , column [] (List.map (imageView selected) image.extracted)
         ]

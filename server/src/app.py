@@ -174,10 +174,10 @@ def ocr() -> Any:
         img_with_rect = img.copy()
         data_list = []
         for (points, text, score) in result:
-            x = points[0][0]
-            y = points[0][1]
-            w = points[2][0] - x
-            h = points[2][1] - y
+            x = int(points[0][0])
+            y = int(points[0][1])
+            w = int(points[2][0] - x)
+            h = int(points[2][1] - y)
             cv2.rectangle(
                 img_with_rect, (x, y), (x+w, y+h), (255, 0, 0), 2)
 
@@ -250,6 +250,16 @@ def contours() -> Any:
             leftBottom = c[1][0]
             rightBottom = c[2][0]
             rightTop = c[3][0]
+
+            # 上から２点をとる
+            ysort = sorted([leftTop, leftBottom, rightBottom,
+                            rightTop], key=lambda x: int(x[1]))
+            # 右肩上がりの領域の場合、ポイントを入れ替える
+            if ysort[0][0] > ysort[1][0]:
+                rightTop = c[0][0]
+                leftTop = c[1][0]
+                leftBottom = c[2][0]
+                rightBottom = c[3][0]
 
             src = np.float32([leftTop, rightTop, leftBottom, rightBottom])
 
