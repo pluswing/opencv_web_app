@@ -64,6 +64,71 @@ type alias Model =
     }
 
 
+type alias Image =
+    { taskId : String
+    , id : String
+    }
+
+
+image2Url : Image -> String
+image2Url image =
+    apiEndpoint ++ "/static/task/" ++ image.taskId ++ "/" ++ image.id ++ ".jpg"
+
+
+imageDecoder : Decoder Image
+imageDecoder =
+    map2 Image
+        (field "task_id" string)
+        (field "id" string)
+
+
+imageEncoder : Image -> Encode.Value
+imageEncoder image =
+    Encode.object
+        [ ( "task_id", Encode.string image.taskId )
+        , ( "id", Encode.string image.id )
+        ]
+
+
+type alias ImageWithThreshold =
+    { image : Image
+    , threshold : String
+    }
+
+
+type alias ImageWithFaces =
+    { image : Image
+    , faces : List Image
+    }
+
+
+type alias ImageWithExtracted =
+    { image : Image
+    , extracted : List Image
+    }
+
+
+type alias ImageText =
+    { image : Image
+    , text : String
+    , score : Float
+    }
+
+
+imageTextDecoder : Decoder ImageText
+imageTextDecoder =
+    map3 ImageText
+        (field "image" imageDecoder)
+        (field "text" string)
+        (field "score" float)
+
+
+type alias ImageWithTexts =
+    { image : Image
+    , texts : List ImageText
+    }
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { history = []
@@ -452,7 +517,7 @@ imageView : Maybe Image -> Image -> Element Msg
 imageView selected img =
     image
         ([ padding 5
-         , width shrink
+         , width fill
          , Events.onClick (SelectImage img)
          ]
             ++ (if selected == Just img then
@@ -478,28 +543,65 @@ thresholdResultView image selected =
         ]
 
 
+thresholdResponseDecoder : Decoder ImageWithThreshold
+thresholdResponseDecoder =
+    map2 ImageWithThreshold
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "threshold" string)))
+
+
+imageEncoderWithThreashold : Image -> String -> Encode.Value
+imageEncoderWithThreashold image threshold =
+    Encode.object
+        [ ( "task_id", Encode.string image.taskId )
+        , ( "id", Encode.string image.id )
+        , ( "threshold", Encode.string threshold )
+        ]
+
+
 faceDetectionResultView : ImageWithFaces -> Maybe Image -> Element Msg
 faceDetectionResultView image selected =
     row []
-        [ imageView selected image.image
-        , column [] (List.map (imageView selected) image.faces)
+        [ el [ width (fillPortion 2) ] (imageView selected image.image)
+        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.faces)
         ]
+
+
+faceDetectionResponseDecoder : Decoder ImageWithFaces
+faceDetectionResponseDecoder =
+    map2 ImageWithFaces
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "faces" (list imageDecoder))))
 
 
 contourResultView : ImageWithExtracted -> Maybe Image -> Element Msg
 contourResultView image selected =
-    row [ width shrink ]
-        [ imageView selected image.image
-        , column [] (List.map (imageView selected) image.extracted)
+    row []
+        [ el [ width (fillPortion 2) ] (imageView selected image.image)
+        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.extracted)
         ]
+
+
+contoursResponseDecoder : Decoder ImageWithExtracted
+contoursResponseDecoder =
+    map2 ImageWithExtracted
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "extracted" (list imageDecoder))))
 
 
 ocrResultView : ImageWithTexts -> Maybe Image -> Element Msg
 ocrResultView image selected =
     row []
-        [ imageView selected image.image
-        , column [] (List.map (imageTextView selected) image.texts)
+        [ el [ width (fillPortion 2) ] (imageView selected image.image)
+        , column [ width (fillPortion 3) ] (List.map (imageTextView selected) image.texts)
         ]
+
+
+ocrResponseDecoder : Decoder ImageWithTexts
+ocrResponseDecoder =
+    map2 ImageWithTexts
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "texts" (list imageTextDecoder))))
 
 
 imageTextView : Maybe Image -> ImageText -> Element Msg
@@ -558,53 +660,9 @@ historyItemView selected result =
         )
 
 
-type alias Image =
-    { taskId : String
-    , id : String
-    }
-
-
-type alias ImageWithThreshold =
-    { image : Image
-    , threshold : String
-    }
-
-
-type alias ImageWithFaces =
-    { image : Image
-    , faces : List Image
-    }
-
-
-type alias ImageWithExtracted =
-    { image : Image
-    , extracted : List Image
-    }
-
-
-type alias ImageText =
-    { image : Image
-    , text : String
-    , score : Float
-    }
-
-
-type alias ImageWithTexts =
-    { image : Image
-    , texts : List ImageText
-    }
-
-
 uploadImageResponseDecoder : Decoder Image
 uploadImageResponseDecoder =
     field "result" (field "image" imageDecoder)
-
-
-imageDecoder : Decoder Image
-imageDecoder =
-    map2 Image
-        (field "task_id" string)
-        (field "id" string)
 
 
 grayscaleResponseDecoder : Decoder Image
@@ -612,64 +670,6 @@ grayscaleResponseDecoder =
     uploadImageResponseDecoder
 
 
-contoursResponseDecoder : Decoder ImageWithExtracted
-contoursResponseDecoder =
-    map2 ImageWithExtracted
-        (field "result" (field "image" imageDecoder))
-        (field "result" (field "params" (field "extracted" (list imageDecoder))))
-
-
 bitwiseNotResponseDecoder : Decoder Image
 bitwiseNotResponseDecoder =
     uploadImageResponseDecoder
-
-
-thresholdResponseDecoder : Decoder ImageWithThreshold
-thresholdResponseDecoder =
-    map2 ImageWithThreshold
-        (field "result" (field "image" imageDecoder))
-        (field "result" (field "params" (field "threshold" string)))
-
-
-faceDetectionResponseDecoder : Decoder ImageWithFaces
-faceDetectionResponseDecoder =
-    map2 ImageWithFaces
-        (field "result" (field "image" imageDecoder))
-        (field "result" (field "params" (field "faces" (list imageDecoder))))
-
-
-ocrResponseDecoder : Decoder ImageWithTexts
-ocrResponseDecoder =
-    map2 ImageWithTexts
-        (field "result" (field "image" imageDecoder))
-        (field "result" (field "params" (field "texts" (list textImagedecoder))))
-
-
-textImagedecoder : Decoder ImageText
-textImagedecoder =
-    map3 ImageText
-        (field "image" imageDecoder)
-        (field "text" string)
-        (field "score" float)
-
-
-image2Url : Image -> String
-image2Url image =
-    apiEndpoint ++ "/static/task/" ++ image.taskId ++ "/" ++ image.id ++ ".jpg"
-
-
-imageEncoder : Image -> Encode.Value
-imageEncoder image =
-    Encode.object
-        [ ( "task_id", Encode.string image.taskId )
-        , ( "id", Encode.string image.id )
-        ]
-
-
-imageEncoderWithThreashold : Image -> String -> Encode.Value
-imageEncoderWithThreashold image threshold =
-    Encode.object
-        [ ( "task_id", Encode.string image.taskId )
-        , ( "id", Encode.string image.id )
-        , ( "threshold", Encode.string threshold )
-        ]
