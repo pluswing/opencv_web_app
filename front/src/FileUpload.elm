@@ -89,53 +89,6 @@ type alias Model =
     }
 
 
-type alias Image =
-    { taskId : String
-    , id : String
-    }
-
-
-image2Url : Image -> String
-image2Url image =
-    apiEndpoint ++ "/static/task/" ++ image.taskId ++ "/" ++ image.id ++ ".jpg"
-
-
-imageDecoder : Decoder Image
-imageDecoder =
-    map2 Image
-        (field "task_id" string)
-        (field "id" string)
-
-
-imageEncoder : Image -> Encode.Value
-imageEncoder image =
-    Encode.object
-        [ ( "task_id", Encode.string image.taskId )
-        , ( "id", Encode.string image.id )
-        ]
-
-
-type alias ImageWithExtracted =
-    { image : Image
-    , extracted : List Image
-    }
-
-
-type alias ImageText =
-    { image : Image
-    , text : String
-    , score : Float
-    }
-
-
-imageTextDecoder : Decoder ImageText
-imageTextDecoder =
-    map3 ImageText
-        (field "image" imageDecoder)
-        (field "text" string)
-        (field "score" float)
-
-
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { history = []
@@ -175,126 +128,44 @@ update msg model =
             thresholdResponse model result
 
         FaceDetection ->
-            case model.currentImage of
-                Just img ->
-                    ( model
-                    , Http.post
-                        { url = apiEndpoint ++ "/face_detection"
-                        , body =
-                            Http.jsonBody (imageEncoder img)
-                        , expect = Http.expectJson FaceDetectionResponse faceDetectionResponseDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            faceDetection model
 
         FaceDetectionResponse result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ FaceDetectionResult img ]
-                        , current = Just (FaceDetectionResult img)
-                        , currentImage = Just img.image
-                      }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+            faceDetectionResponse model result
 
         Ocr ->
-            case model.currentImage of
-                Just img ->
-                    ( model
-                    , Http.post
-                        { url = apiEndpoint ++ "/ocr"
-                        , body =
-                            Http.jsonBody (imageEncoder img)
-                        , expect = Http.expectJson OcrResponse ocrResponseDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            ocr model
 
         OcrResponse result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ OcrResult img ]
-                        , current = Just (OcrResult img)
-                        , currentImage = Just img.image
-                      }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+            ocrResponse model result
 
         SelectImage image ->
-            ( { model | currentImage = Just image }, Cmd.none )
+            selectImage model image
 
         SelectLayer result ->
-            ( { model | current = Just result, currentImage = Just (filterResult2Image result) }, Cmd.none )
+            selectLayer model result
 
         Contours ->
-            case model.currentImage of
-                Just img ->
-                    ( model
-                    , Http.post
-                        { url = apiEndpoint ++ "/contours"
-                        , body =
-                            Http.jsonBody (imageEncoder img)
-                        , expect = Http.expectJson ContoursResponse contoursResponseDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            contours model
 
         ContoursResponse result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ ContoursResult img ]
-                        , current = Just (ContoursResult img)
-                        , currentImage = Just img.image
-                      }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+            contoursResponse model result
 
         BitwiseNot ->
-            case model.currentImage of
-                Just img ->
-                    ( model
-                    , Http.post
-                        { url = apiEndpoint ++ "/bitwise_not"
-                        , body =
-                            Http.jsonBody (imageEncoder img)
-                        , expect = Http.expectJson BitwiseNotResponse bitwiseNotResponseDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            bitwiseNot model
 
         BitwiseNotResponse result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ BitwiseNotResult img ]
-                        , current = Just (BitwiseNotResult img)
-                        , currentImage = Just img
-                      }
-                    , Cmd.none
-                    )
+            bitwiseNotResponse model result
 
-                Err _ ->
-                    ( model, Cmd.none )
+
+selectImage : Model -> Image -> ( Model, Cmd Msg )
+selectImage model image =
+    ( { model | currentImage = Just image }, Cmd.none )
+
+
+selectLayer : Model -> FilterResult -> ( Model, Cmd Msg )
+selectLayer model result =
+    ( { model | current = Just result, currentImage = Just (filterResult2Image result) }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -313,20 +184,6 @@ view model =
     }
 
 
-rootView : Model -> Element Msg
-rootView model =
-    row
-        [ width fill
-        , height fill
-        , spacing 30
-        , Background.color colors.main
-        ]
-        [ controlView model.threshold
-        , mainView model.current model.currentImage
-        , historyView model.history model.current
-        ]
-
-
 colors : { background : Color, headline : Color, paragraph : Color, button : Color, buttonText : Color, stroke : Color, main : Color, highlight : Color, secondary : Color, tertialy : Color }
 colors =
     { background = rgb255 0xFF 0xFF 0xFE
@@ -340,6 +197,20 @@ colors =
     , secondary = rgb255 0x99 0x4F 0xF3
     , tertialy = rgb255 0xFB 0xDD 0x74
     }
+
+
+rootView : Model -> Element Msg
+rootView model =
+    row
+        [ width fill
+        , height fill
+        , spacing 30
+        , Background.color colors.main
+        ]
+        [ controlView model.threshold
+        , mainView model.current model.currentImage
+        , historyView model.history model.current
+        ]
 
 
 buttonStyle : List (Attr () msg)
@@ -428,6 +299,79 @@ mainView result selected =
                 (text "Nothing")
 
 
+historyView : List FilterResult -> Maybe FilterResult -> Element Msg
+historyView history selected =
+    column [ alignTop, spacing 5 ]
+        (List.map
+            (historyItemView selected)
+            history
+        )
+
+
+historyItemView : Maybe FilterResult -> FilterResult -> Element Msg
+historyItemView selected result =
+    el
+        ([ padding 10
+         , width fill
+         , Events.onClick (SelectLayer result)
+         ]
+            ++ (if selected == Just result then
+                    [ Background.color colors.highlight ]
+
+                else
+                    [ Background.color colors.secondary ]
+               )
+        )
+        (case result of
+            UploadImageResult _ ->
+                text "UPLAOD IMAGE"
+
+            GrayscaleResult _ ->
+                text "GRASCALE"
+
+            ThresholdResult _ ->
+                text "THRESHOLD"
+
+            FaceDetectionResult _ ->
+                text "FACE DETECTION"
+
+            OcrResult _ ->
+                text "OCR"
+
+            ContoursResult _ ->
+                text "Contours"
+
+            BitwiseNotResult _ ->
+                text "BitwiseNot"
+        )
+
+
+type alias Image =
+    { taskId : String
+    , id : String
+    }
+
+
+image2Url : Image -> String
+image2Url image =
+    apiEndpoint ++ "/static/task/" ++ image.taskId ++ "/" ++ image.id ++ ".jpg"
+
+
+imageDecoder : Decoder Image
+imageDecoder =
+    map2 Image
+        (field "task_id" string)
+        (field "id" string)
+
+
+imageEncoder : Image -> Encode.Value
+imageEncoder image =
+    Encode.object
+        [ ( "task_id", Encode.string image.taskId )
+        , ( "id", Encode.string image.id )
+        ]
+
+
 imageView : Maybe Image -> Image -> Element Msg
 imageView selected img =
     image
@@ -453,17 +397,6 @@ type alias ImageWithThreshold =
     }
 
 
-thresholdResultView : ImageWithThreshold -> Maybe Image -> Element Msg
-thresholdResultView image selected =
-    column []
-        [ imageView selected image.image
-        , row []
-            [ text "THRESHOLD:"
-            , text image.threshold
-            ]
-        ]
-
-
 thresholdResponseDecoder : Decoder ImageWithThreshold
 thresholdResponseDecoder =
     map2 ImageWithThreshold
@@ -477,6 +410,17 @@ imageEncoderWithThreashold image thresholdValue =
         [ ( "task_id", Encode.string image.taskId )
         , ( "id", Encode.string image.id )
         , ( "threshold", Encode.string thresholdValue )
+        ]
+
+
+thresholdResultView : ImageWithThreshold -> Maybe Image -> Element Msg
+thresholdResultView image selected =
+    column []
+        [ imageView selected image.image
+        , row []
+            [ text "THRESHOLD:"
+            , text image.threshold
+            ]
         ]
 
 
@@ -522,14 +466,6 @@ thresholdResponse model result =
             ( model, Cmd.none )
 
 
-faceDetectionResultView : ImageWithFaces -> Maybe Image -> Element Msg
-faceDetectionResultView image selected =
-    row []
-        [ el [ width (fillPortion 2) ] (imageView selected image.image)
-        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.faces)
-        ]
-
-
 type alias ImageWithFaces =
     { image : Image
     , faces : List Image
@@ -543,12 +479,51 @@ faceDetectionResponseDecoder =
         (field "result" (field "params" (field "faces" (list imageDecoder))))
 
 
-contourResultView : ImageWithExtracted -> Maybe Image -> Element Msg
-contourResultView image selected =
+faceDetectionResultView : ImageWithFaces -> Maybe Image -> Element Msg
+faceDetectionResultView image selected =
     row []
         [ el [ width (fillPortion 2) ] (imageView selected image.image)
-        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.extracted)
+        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.faces)
         ]
+
+
+faceDetection : Model -> ( Model, Cmd Msg )
+faceDetection model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/face_detection"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson FaceDetectionResponse faceDetectionResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+faceDetectionResponse : Model -> Result Http.Error ImageWithFaces -> ( Model, Cmd Msg )
+faceDetectionResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ FaceDetectionResult img ]
+                , current = Just (FaceDetectionResult img)
+                , currentImage = Just img.image
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
+
+
+type alias ImageWithExtracted =
+    { image : Image
+    , extracted : List Image
+    }
 
 
 contoursResponseDecoder : Decoder ImageWithExtracted
@@ -558,10 +533,73 @@ contoursResponseDecoder =
         (field "result" (field "params" (field "extracted" (list imageDecoder))))
 
 
+contourResultView : ImageWithExtracted -> Maybe Image -> Element Msg
+contourResultView image selected =
+    row []
+        [ el [ width (fillPortion 2) ] (imageView selected image.image)
+        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.extracted)
+        ]
+
+
+contours : Model -> ( Model, Cmd Msg )
+contours model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/contours"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson ContoursResponse contoursResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+contoursResponse : Model -> Result Http.Error ImageWithExtracted -> ( Model, Cmd Msg )
+contoursResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ ContoursResult img ]
+                , current = Just (ContoursResult img)
+                , currentImage = Just img.image
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
+
+
 type alias ImageWithTexts =
     { image : Image
     , texts : List ImageText
     }
+
+
+type alias ImageText =
+    { image : Image
+    , text : String
+    , score : Float
+    }
+
+
+imageTextDecoder : Decoder ImageText
+imageTextDecoder =
+    map3 ImageText
+        (field "image" imageDecoder)
+        (field "text" string)
+        (field "score" float)
+
+
+ocrResponseDecoder : Decoder ImageWithTexts
+ocrResponseDecoder =
+    map2 ImageWithTexts
+        (field "result" (field "image" imageDecoder))
+        (field "result" (field "params" (field "texts" (list imageTextDecoder))))
 
 
 ocrResultView : ImageWithTexts -> Maybe Image -> Element Msg
@@ -572,11 +610,37 @@ ocrResultView image selected =
         ]
 
 
-ocrResponseDecoder : Decoder ImageWithTexts
-ocrResponseDecoder =
-    map2 ImageWithTexts
-        (field "result" (field "image" imageDecoder))
-        (field "result" (field "params" (field "texts" (list imageTextDecoder))))
+ocr : Model -> ( Model, Cmd Msg )
+ocr model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/ocr"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson OcrResponse ocrResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+ocrResponse : Model -> Result Http.Error ImageWithTexts -> ( Model, Cmd Msg )
+ocrResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ OcrResult img ]
+                , current = Just (OcrResult img)
+                , currentImage = Just img.image
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
 
 
 imageTextView : Maybe Image -> ImageText -> Element Msg
@@ -586,53 +650,6 @@ imageTextView selected image =
         , text image.text
         , text ("(" ++ String.fromFloat image.score ++ ")")
         ]
-
-
-historyView : List FilterResult -> Maybe FilterResult -> Element Msg
-historyView history selected =
-    column [ alignTop, spacing 5 ]
-        (List.map
-            (historyItemView selected)
-            history
-        )
-
-
-historyItemView : Maybe FilterResult -> FilterResult -> Element Msg
-historyItemView selected result =
-    el
-        ([ padding 10
-         , width fill
-         , Events.onClick (SelectLayer result)
-         ]
-            ++ (if selected == Just result then
-                    [ Background.color colors.highlight ]
-
-                else
-                    [ Background.color colors.secondary ]
-               )
-        )
-        (case result of
-            UploadImageResult image ->
-                text "UPLAOD IMAGE"
-
-            GrayscaleResult image ->
-                text "GRASCALE"
-
-            ThresholdResult image ->
-                text "THRESHOLD"
-
-            FaceDetectionResult image ->
-                text "FACE DETECTION"
-
-            OcrResult image ->
-                text "OCR"
-
-            ContoursResult image ->
-                text "Contours"
-
-            BitwiseNotResult image ->
-                text "BitwiseNot"
-        )
 
 
 imageUploadResponseDecoder : Decoder Image
@@ -713,3 +730,36 @@ grayscaleResponse model result =
 bitwiseNotResponseDecoder : Decoder Image
 bitwiseNotResponseDecoder =
     imageUploadResponseDecoder
+
+
+bitwiseNot : Model -> ( Model, Cmd Msg )
+bitwiseNot model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/bitwise_not"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson BitwiseNotResponse bitwiseNotResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+bitwiseNotResponse : Model -> Result Http.Error Image -> ( Model, Cmd Msg )
+bitwiseNotResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ BitwiseNotResult img ]
+                , current = Just (BitwiseNotResult img)
+                , currentImage = Just img
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
