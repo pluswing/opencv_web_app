@@ -26,9 +26,9 @@ main =
 
 
 type Msg
-    = CsvRequested
-    | CsvSelected File
-    | Uploaded (Result Http.Error Image)
+    = ImageUpload
+    | ImageSelected File
+    | ImageUploadResponse (Result Http.Error Image)
     | Grayscale
     | GrayscaleResponse (Result Http.Error Image)
     | ChangeThreshold String
@@ -54,6 +54,31 @@ type FilterResult
     | OcrResult ImageWithTexts
     | ContoursResult ImageWithExtracted
     | BitwiseNotResult Image
+
+
+filterResult2Image : FilterResult -> Image
+filterResult2Image result =
+    case result of
+        UploadImageResult image ->
+            image
+
+        GrayscaleResult image ->
+            image
+
+        ThresholdResult image ->
+            image.image
+
+        FaceDetectionResult image ->
+            image.image
+
+        OcrResult image ->
+            image.image
+
+        ContoursResult image ->
+            image.image
+
+        BitwiseNotResult image ->
+            image
 
 
 type alias Model =
@@ -90,18 +115,6 @@ imageEncoder image =
         ]
 
 
-type alias ImageWithThreshold =
-    { image : Image
-    , threshold : String
-    }
-
-
-type alias ImageWithFaces =
-    { image : Image
-    , faces : List Image
-    }
-
-
 type alias ImageWithExtracted =
     { image : Image
     , extracted : List Image
@@ -123,12 +136,6 @@ imageTextDecoder =
         (field "score" float)
 
 
-type alias ImageWithTexts =
-    { image : Image
-    , texts : List ImageText
-    }
-
-
 init : () -> ( Model, Cmd Msg )
 init _ =
     ( { history = []
@@ -143,96 +150,29 @@ init _ =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        CsvRequested ->
-            ( model, Select.file [] CsvSelected )
+        ImageUpload ->
+            imageUpload model
 
-        CsvSelected file ->
-            ( model
-            , Http.post
-                { url = apiEndpoint ++ "/upload_image"
-                , body = Http.multipartBody [ Http.filePart "uploadFile" file ]
-                , expect = Http.expectJson Uploaded uploadImageResponseDecoder
-                }
-            )
+        ImageSelected file ->
+            imageSelected model file
 
-        Uploaded result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ UploadImageResult img ]
-                        , current = Just (UploadImageResult img)
-                        , currentImage = Just img
-                      }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+        ImageUploadResponse result ->
+            imageUploadResponse model result
 
         Grayscale ->
-            case model.currentImage of
-                Just img ->
-                    ( model
-                    , Http.post
-                        { url = apiEndpoint ++ "/grayscale"
-                        , body =
-                            Http.jsonBody (imageEncoder img)
-                        , expect = Http.expectJson GrayscaleResponse grayscaleResponseDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            grayscale model
 
         GrayscaleResponse result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ GrayscaleResult img ]
-                        , current = Just (GrayscaleResult img)
-                        , currentImage = Just img
-                      }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+            grayscaleResponse model result
 
         ChangeThreshold value ->
-            ( { model | threshold = value }, Cmd.none )
+            changeThreshold model value
 
         Threshold ->
-            case model.currentImage of
-                Just img ->
-                    ( model
-                    , Http.post
-                        { url = apiEndpoint ++ "/threshold"
-                        , body =
-                            Http.jsonBody
-                                (imageEncoderWithThreashold
-                                    img
-                                    model.threshold
-                                )
-                        , expect = Http.expectJson ThresholdResponse thresholdResponseDecoder
-                        }
-                    )
-
-                Nothing ->
-                    ( model, Cmd.none )
+            threshold model
 
         ThresholdResponse result ->
-            case result of
-                Ok img ->
-                    ( { model
-                        | history = model.history ++ [ ThresholdResult img ]
-                        , current = Just (ThresholdResult img)
-                        , currentImage = Just img.image
-                      }
-                    , Cmd.none
-                    )
-
-                Err _ ->
-                    ( model, Cmd.none )
+            thresholdResponse model result
 
         FaceDetection ->
             case model.currentImage of
@@ -357,31 +297,6 @@ update msg model =
                     ( model, Cmd.none )
 
 
-filterResult2Image : FilterResult -> Image
-filterResult2Image result =
-    case result of
-        UploadImageResult image ->
-            image
-
-        GrayscaleResult image ->
-            image
-
-        ThresholdResult image ->
-            image.image
-
-        FaceDetectionResult image ->
-            image.image
-
-        OcrResult image ->
-            image.image
-
-        ContoursResult image ->
-            image.image
-
-        BitwiseNotResult image ->
-            image
-
-
 subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.none
@@ -439,10 +354,10 @@ buttonStyle =
 
 
 controlView : String -> Element Msg
-controlView threshold =
+controlView thresholdValue =
     column [ alignTop, spacing 20 ]
         [ Input.button buttonStyle
-            { onPress = Just CsvRequested
+            { onPress = Just ImageUpload
             , label = text "Upload Image"
             }
         , Input.button buttonStyle
@@ -452,7 +367,7 @@ controlView threshold =
         , column [ width fill ]
             [ Input.text []
                 { onChange = ChangeThreshold
-                , text = threshold
+                , text = thresholdValue
                 , placeholder = Nothing
                 , label = Input.labelHidden ""
                 }
@@ -532,6 +447,12 @@ imageView selected img =
         }
 
 
+type alias ImageWithThreshold =
+    { image : Image
+    , threshold : String
+    }
+
+
 thresholdResultView : ImageWithThreshold -> Maybe Image -> Element Msg
 thresholdResultView image selected =
     column []
@@ -551,12 +472,54 @@ thresholdResponseDecoder =
 
 
 imageEncoderWithThreashold : Image -> String -> Encode.Value
-imageEncoderWithThreashold image threshold =
+imageEncoderWithThreashold image thresholdValue =
     Encode.object
         [ ( "task_id", Encode.string image.taskId )
         , ( "id", Encode.string image.id )
-        , ( "threshold", Encode.string threshold )
+        , ( "threshold", Encode.string thresholdValue )
         ]
+
+
+changeThreshold : Model -> String -> ( Model, Cmd Msg )
+changeThreshold model value =
+    ( { model | threshold = value }, Cmd.none )
+
+
+threshold : Model -> ( Model, Cmd Msg )
+threshold model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/threshold"
+                , body =
+                    Http.jsonBody
+                        (imageEncoderWithThreashold
+                            img
+                            model.threshold
+                        )
+                , expect = Http.expectJson ThresholdResponse thresholdResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+thresholdResponse : Model -> Result Http.Error ImageWithThreshold -> ( Model, Cmd Msg )
+thresholdResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ ThresholdResult img ]
+                , current = Just (ThresholdResult img)
+                , currentImage = Just img.image
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
 
 
 faceDetectionResultView : ImageWithFaces -> Maybe Image -> Element Msg
@@ -565,6 +528,12 @@ faceDetectionResultView image selected =
         [ el [ width (fillPortion 2) ] (imageView selected image.image)
         , column [ width (fillPortion 3) ] (List.map (imageView selected) image.faces)
         ]
+
+
+type alias ImageWithFaces =
+    { image : Image
+    , faces : List Image
+    }
 
 
 faceDetectionResponseDecoder : Decoder ImageWithFaces
@@ -587,6 +556,12 @@ contoursResponseDecoder =
     map2 ImageWithExtracted
         (field "result" (field "image" imageDecoder))
         (field "result" (field "params" (field "extracted" (list imageDecoder))))
+
+
+type alias ImageWithTexts =
+    { image : Image
+    , texts : List ImageText
+    }
 
 
 ocrResultView : ImageWithTexts -> Maybe Image -> Element Msg
@@ -660,16 +635,81 @@ historyItemView selected result =
         )
 
 
-uploadImageResponseDecoder : Decoder Image
-uploadImageResponseDecoder =
+imageUploadResponseDecoder : Decoder Image
+imageUploadResponseDecoder =
     field "result" (field "image" imageDecoder)
+
+
+imageUpload : Model -> ( Model, Cmd Msg )
+imageUpload model =
+    ( model, Select.file [] ImageSelected )
+
+
+imageSelected : Model -> File -> ( Model, Cmd Msg )
+imageSelected model file =
+    ( model
+    , Http.post
+        { url = apiEndpoint ++ "/upload_image"
+        , body = Http.multipartBody [ Http.filePart "uploadFile" file ]
+        , expect = Http.expectJson ImageUploadResponse imageUploadResponseDecoder
+        }
+    )
+
+
+imageUploadResponse : Model -> Result Http.Error Image -> ( Model, Cmd Msg )
+imageUploadResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ UploadImageResult img ]
+                , current = Just (UploadImageResult img)
+                , currentImage = Just img
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
 
 
 grayscaleResponseDecoder : Decoder Image
 grayscaleResponseDecoder =
-    uploadImageResponseDecoder
+    imageUploadResponseDecoder
+
+
+grayscale : Model -> ( Model, Cmd Msg )
+grayscale model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/grayscale"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson GrayscaleResponse grayscaleResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+grayscaleResponse : Model -> Result Http.Error Image -> ( Model, Cmd Msg )
+grayscaleResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ GrayscaleResult img ]
+                , current = Just (GrayscaleResult img)
+                , currentImage = Just img
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
 
 
 bitwiseNotResponseDecoder : Decoder Image
 bitwiseNotResponseDecoder =
-    uploadImageResponseDecoder
+    imageUploadResponseDecoder
