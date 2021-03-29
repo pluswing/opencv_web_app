@@ -44,6 +44,8 @@ type Msg
     | ContoursResponse (Result Http.Error ImageWithExtracted)
     | BitwiseNot
     | BitwiseNotResponse (Result Http.Error Image)
+    | Blur
+    | BlurResponse (Result Http.Error Image)
 
 
 type FilterResult
@@ -54,6 +56,7 @@ type FilterResult
     | OcrResult ImageWithTexts
     | ContoursResult ImageWithExtracted
     | BitwiseNotResult Image
+    | BlurResult Image
 
 
 filterResult2Image : FilterResult -> Image
@@ -78,6 +81,9 @@ filterResult2Image result =
             image.image
 
         BitwiseNotResult image ->
+            image
+
+        BlurResult image ->
             image
 
 
@@ -156,6 +162,12 @@ update msg model =
 
         BitwiseNotResponse result ->
             bitwiseNotResponse model result
+
+        Blur ->
+            blur model
+
+        BlurResponse result ->
+            blurResponse model result
 
 
 selectImage : Model -> Image -> ( Model, Cmd Msg )
@@ -263,6 +275,10 @@ controlView thresholdValue =
             { onPress = Just BitwiseNot
             , label = text "BitwiseNot"
             }
+        , Input.button buttonStyle
+            { onPress = Just Blur
+            , label = text "Blur"
+            }
         ]
 
 
@@ -291,6 +307,9 @@ mainView result selected =
                         contourResultView image selected
 
                     BitwiseNotResult image ->
+                        imageView selected image
+
+                    BlurResult image ->
                         imageView selected image
                 )
 
@@ -343,6 +362,9 @@ historyItemView selected result =
 
             BitwiseNotResult _ ->
                 text "BitwiseNot"
+
+            BlurResult _ ->
+                text "Blur"
         )
 
 
@@ -756,6 +778,44 @@ bitwiseNotResponse model result =
             ( { model
                 | history = model.history ++ [ BitwiseNotResult img ]
                 , current = Just (BitwiseNotResult img)
+                , currentImage = Just img
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
+
+
+blurResponseDecoder : Decoder Image
+blurResponseDecoder =
+    imageUploadResponseDecoder
+
+
+blur : Model -> ( Model, Cmd Msg )
+blur model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/blur"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson BlurResponse blurResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+blurResponse : Model -> Result Http.Error Image -> ( Model, Cmd Msg )
+blurResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ BlurResult img ]
+                , current = Just (BlurResult img)
                 , currentImage = Just img
               }
             , Cmd.none

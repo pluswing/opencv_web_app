@@ -307,6 +307,16 @@ def bitwise_not() -> Any:
 
     return filter_api(_not)
 
+
+@app.route("/blur", methods=["POST"])
+def blur() -> Any:
+    def _blur(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, None]:
+        return cv2.GaussianBlur(img, (5, 5), 0), None
+
+    return filter_api(_blur)
+
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）
 
