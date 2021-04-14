@@ -19,6 +19,11 @@ for i in range(1000):
     for c in cs:
         img = Image.open(c)
         (w, h) = img.size
+        img = img.resize((w//2, h//2), Image.BICUBIC)
+        (w, h) = img.size
+
+        r = random.randint(0, 359)
+        img = img.rotate(angle=r, resample=Image.BICUBIC, expand=True)
         x = random.randint(0, width - w)
         y = random.randint(0, height - h)
         bgImg.paste(img, (x, y))
