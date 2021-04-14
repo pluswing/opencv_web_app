@@ -2,6 +2,8 @@
 import glob
 from PIL import Image
 import random
+import math
+import itertools
 
 backgrounds = list(glob.glob("images/background/*"))
 cards = list(glob.glob("images/cards/*"))
@@ -22,15 +24,37 @@ for i in range(1000):
         img = img.resize((w//2, h//2), Image.BICUBIC)
         (w, h) = img.size
 
+        #  -> 回転させる
         r = random.randint(0, 359)
         img = img.rotate(angle=r, resample=Image.BICUBIC, expand=True)
-        x = random.randint(0, width - w)
-        y = random.randint(0, height - h)
-        bgImg.paste(img, (x, y))
-        annotations.append(
-            ["card", x, y, x+w, y, x+w, y+h, x, y+h]
-        )
-    #  -> 回転させる
+        mask = Image.new("RGB", (w, h), (255, 255, 255)).convert(
+            "L").rotate(angle=r, resample=Image.BICUBIC, expand=True)
+        mx = random.randint(0, width - w)
+        my = random.randint(0, height - h)
+        bgImg.paste(img, (mx, my), mask)
+
+        # 各点をrotateさせた後の位置にする
+        hw = w // 2
+        hh = h // 2
+        points = [
+            (-hw, -hh),
+            (hw, -hh),
+            (hw, hh),
+            (-hw, hh)
+        ]
+        theta = r * math.pi / 180
+        new_points = []
+        for (x, y) in points:
+            nx = x * math.cos(theta) + y * -math.sin(theta)
+            ny = x * math.sin(theta) + y * math.cos(theta)
+            nx += mx
+            ny += my
+            # TODO 回転後の画像と前の画像の幅、高さの差の半分を引く
+            new_points.append((int(nx), int(ny)))
+
+        data = list(itertools.chain.from_iterable(new_points))
+        data.insert(0, "card")
+        annotations.append(data)
     #  -> 逆に台形補正をかける
 
     # ファイルに書き出す
