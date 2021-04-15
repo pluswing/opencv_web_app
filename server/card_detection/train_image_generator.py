@@ -1,6 +1,6 @@
 # import cv2
 import glob
-from PIL import Image
+from PIL import Image, ImageDraw
 import random
 import math
 import itertools
@@ -42,18 +42,28 @@ for i in range(1000):
             (hw, hh),
             (-hw, hh)
         ]
-        theta = r * math.pi / 180
+        theta = -r * math.pi / 180
         new_points = []
         for (x, y) in points:
             nx = x * math.cos(theta) + y * -math.sin(theta)
             ny = x * math.sin(theta) + y * math.cos(theta)
             nx += mx
             ny += my
-            # TODO 回転後の画像と前の画像の幅、高さの差の半分を引く
+
+            nx += hw
+            ny += hh
+
+            (nw, nh) = img.size
+            nx += (nw - w) / 2
+            ny += (nh - h) / 2
+
             new_points.append((int(nx), int(ny)))
 
+        # draw = ImageDraw.Draw(bgImg)
+        # draw.polygon(new_points, outline=(255, 0, 0))
+
         data = list(itertools.chain.from_iterable(new_points))
-        data.insert(0, "card")
+        data.insert(0, "card")  # TODO card_upとか作る
         annotations.append(data)
     #  -> 逆に台形補正をかける
 
