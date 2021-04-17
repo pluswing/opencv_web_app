@@ -63,16 +63,16 @@ for i in range(1000):
         # draw.polygon(new_points, outline=(255, 0, 0))
 
         data = list(itertools.chain.from_iterable(new_points))
-        data.insert(0, "card")  # TODO card_upとか作る
+        categories = ["card_up", "card_left", "card_down", "card_right"]
+        category = categories[((r + 45) % 360) // 90]
+        data.insert(0, category)
         annotations.append(data)
     #  -> 逆に台形補正をかける
 
     # ファイルに書き出す
-    bgImg.save('test.jpg', quality=80)
+    bgImg.save(f"train/img/{i}.jpg", quality=80)
     # アノテーションデータも書き出す。
     #  -> category,x1,y1...x4,y4
-    with open("annotations.txt", "w") as f:
+    with open(f"train/ann/{i}.txt", "w") as f:
         for a in annotations:
             f.write("\t".join([str(v) for v in a]) + "\n")
-
-    break
