@@ -1,11 +1,10 @@
 import torch
-import torch.nn.functional as F
 import cv2
 import numpy as np
 import os
 
-from models import Darknet
-from utils import non_max_suppression
+from src.models import Darknet
+from src.utils import non_max_suppression
 
 IMAGE_SIZE = 608
 
@@ -31,7 +30,12 @@ def resize_square(img, height=416, color=(0, 0, 0)):
     return cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color), ratio, dw // 2, dh // 2
 
 
-def detect(image_path: str):
+model = None
+device = None
+
+
+def init_model():
+    global model, device
     torch.cuda.empty_cache()
     model = Darknet(YOLO_FILE, IMAGE_SIZE)
     checkpoint = torch.load(CHECKPINT_FILE, map_location='cpu')
@@ -42,6 +46,9 @@ def detect(image_path: str):
     device = torch.device('cuda:0' if cuda else 'cpu')
     model.to(device).eval()
 
+
+def detect(image_path: str):
+    global model, device
     # load_images
     img = cv2.imread(image_path)
     img, _, _, _ = resize_square(

@@ -2,8 +2,8 @@ from collections import defaultdict
 
 import torch.nn as nn
 
-from parse_config import *
-from utils import *
+from src.parse_config import *
+from src.utils import *
 
 
 def create_modules(module_defs):

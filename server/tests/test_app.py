@@ -193,3 +193,10 @@ def test_ocr() -> None:
             }
         }
     }
+
+
+def test_card_detection():
+    res = client.post("/card_detection", json=copy_image("29.jpg"))
+    assert res.status_code == 200
+    data = res.get_json()
+    print(data)

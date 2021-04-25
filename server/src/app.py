@@ -7,6 +7,12 @@ import cv2
 import numpy as np
 import easyocr
 import math
+import itertools
+from src.card_detection import detect as card_detect, init_model
+from src.utils import plot_one_box
+
+
+init_model()
 
 app = Flask(__name__, static_folder='../static')
 CORS(app)
@@ -316,6 +322,66 @@ def blur() -> Any:
         return cv2.GaussianBlur(img, (5, 5), 0), None
 
     return filter_api(_blur)
+
+
+@app.route("/card_detection", methods=["POST"])
+def card_detection() -> Any:
+    def detect(
+            data: dict[str, Any],
+            img: np.ndarray) -> Tuple[np.ndarray, dict[str, Any]]:
+        task_id = data.get("task_id", "")
+        org_id = data.get("id", "")
+
+        cards = card_detect(image_path(task_id, org_id))
+
+        img_with_rect = img.copy()
+
+        for card in cards:
+            plot_one_box(list(itertools.chain.from_iterable(
+                card["points"])), img_with_rect, color=[0, 0, 255])
+
+        data_list = []
+        for card in cards:
+            rotate_cnt = card["degree"] // 90
+            # 左上、左下、右下、右上
+            leftTop = card["points"][(rotate_cnt+0) % 4]
+            leftBottom = card["points"][(rotate_cnt+3) % 4]
+            rightBottom = card["points"][(rotate_cnt+2) % 4]
+            rightTop = card["points"][(rotate_cnt+1) % 4]
+
+            src = np.float32([leftTop, rightTop, leftBottom, rightBottom])
+
+            # 左上、右上、左下、右下
+            o_width = int(math.sqrt(
+                (leftTop[0] - rightTop[0]) ** 2 +
+                (leftTop[1] - rightTop[1]) ** 2
+            ))
+            o_height = int(math.sqrt(
+                (leftTop[0] - leftBottom[0]) ** 2 +
+                (leftTop[1] - leftBottom[1]) ** 2
+            ))
+            dst = np.float32(
+                [[0, 0], [o_width, 0], [0, o_height], [o_width, o_height]])
+
+            M = cv2.getPerspectiveTransform(src, dst)
+            output = cv2.warpPerspective(img, M, (o_width, o_height))
+
+            new_id = str(uuid4())
+            write_path = image_path(task_id, new_id)
+            cv2.imwrite(write_path, output)
+
+            data_list.append({
+                "task_id": task_id,
+                "id": new_id,
+                "x": int(leftTop[0]),
+                "y": int(leftTop[1]),
+                "width": int(o_width),
+                "height": int(o_height),
+            })
+
+        return img_with_rect, {"extracted": data_list}
+
+    return filter_api(detect)
 
 # グレースケール
 # -> フィルター系（パラメータなし。画像のみ）
