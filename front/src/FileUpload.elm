@@ -46,6 +46,8 @@ type Msg
     | BitwiseNotResponse (Result Http.Error Image)
     | Blur
     | BlurResponse (Result Http.Error Image)
+    | CardDetection
+    | CardDetectionResponse (Result Http.Error ImageWithExtracted)
 
 
 type FilterResult
@@ -57,6 +59,7 @@ type FilterResult
     | ContoursResult ImageWithExtracted
     | BitwiseNotResult Image
     | BlurResult Image
+    | CardDetectionResult ImageWithExtracted
 
 
 filterResult2Image : FilterResult -> Image
@@ -85,6 +88,9 @@ filterResult2Image result =
 
         BlurResult image ->
             image
+
+        CardDetectionResult image ->
+            image.image
 
 
 type alias Model =
@@ -168,6 +174,12 @@ update msg model =
 
         BlurResponse result ->
             blurResponse model result
+
+        CardDetection ->
+            cardDetection model
+
+        CardDetectionResponse result ->
+            cardDetectionResponse model result
 
 
 selectImage : Model -> Image -> ( Model, Cmd Msg )
@@ -279,6 +291,10 @@ controlView thresholdValue =
             { onPress = Just Blur
             , label = text "Blur"
             }
+        , Input.button buttonStyle
+            { onPress = Just CardDetection
+            , label = text "CardDetection"
+            }
         ]
 
 
@@ -311,6 +327,9 @@ mainView result selected =
 
                     BlurResult image ->
                         imageView selected image
+
+                    CardDetectionResult image ->
+                        cardDetectionResultView image selected
                 )
 
         Nothing ->
@@ -365,6 +384,9 @@ historyItemView selected result =
 
             BlurResult _ ->
                 text "Blur"
+
+            CardDetectionResult _ ->
+                text "CardDetection"
         )
 
 
@@ -817,6 +839,52 @@ blurResponse model result =
                 | history = model.history ++ [ BlurResult img ]
                 , current = Just (BlurResult img)
                 , currentImage = Just img
+              }
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model, Cmd.none )
+
+
+cardDetectionResponseDecoder : Decoder ImageWithExtracted
+cardDetectionResponseDecoder =
+    contoursResponseDecoder
+
+
+cardDetectionResultView : ImageWithExtracted -> Maybe Image -> Element Msg
+cardDetectionResultView image selected =
+    row []
+        [ el [ width (fillPortion 2) ] (imageView selected image.image)
+        , column [ width (fillPortion 3) ] (List.map (imageView selected) image.extracted)
+        ]
+
+
+cardDetection : Model -> ( Model, Cmd Msg )
+cardDetection model =
+    case model.currentImage of
+        Just img ->
+            ( model
+            , Http.post
+                { url = apiEndpoint ++ "/card_detection"
+                , body =
+                    Http.jsonBody (imageEncoder img)
+                , expect = Http.expectJson CardDetectionResponse cardDetectionResponseDecoder
+                }
+            )
+
+        Nothing ->
+            ( model, Cmd.none )
+
+
+cardDetectionResponse : Model -> Result Http.Error ImageWithExtracted -> ( Model, Cmd Msg )
+cardDetectionResponse model result =
+    case result of
+        Ok img ->
+            ( { model
+                | history = model.history ++ [ CardDetectionResult img ]
+                , current = Just (CardDetectionResult img)
+                , currentImage = Just img.image
               }
             , Cmd.none
             )

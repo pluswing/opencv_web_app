@@ -13,7 +13,7 @@ id = "a"
 def setup_each_function() -> Any:
     clear_image()
     yield
-    clear_image()
+    # clear_image()
 
 
 def test_image_path() -> None:

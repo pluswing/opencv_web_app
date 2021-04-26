@@ -1,5 +1,5 @@
 start:
-	FLASK_APP=src/app.py FLASK_ENV=development flask run -h 0.0.0.0
+	PYTHONPATH=. FLASK_APP=src/app.py FLASK_ENV=development flask run -h 0.0.0.0
 
 lint:
 	autopep8 -i src/*.py tests/*.py
